@@ -2026,6 +2026,11 @@ function updateCanvas() {
     // Draw background
     drawBackground();
 
+    // Draw noise overlay on background if enabled
+    if (state.background.noise) {
+        drawNoise();
+    }
+
     // Draw screenshot (2D mode) or 3D phone model
     if (state.screenshots.length > 0) {
         if (state.use3D && typeof renderThreeJSToCanvas === 'function' && phoneModelLoaded) {
@@ -2042,11 +2047,6 @@ function updateCanvas() {
 
     // Draw text
     drawText();
-
-    // Draw noise overlay if enabled
-    if (state.background.noise) {
-        drawNoise();
-    }
 }
 
 function drawBackground() {
