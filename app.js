@@ -2416,3 +2416,830 @@ async function exportAll() {
 
 // Initialize the app
 initSync();
+
+// ===========================
+// MOBILE RESPONSIVE SUPPORT
+// ===========================
+
+// Check if we're on mobile
+function isMobileView() {
+    return window.innerWidth <= 768;
+}
+
+// Mobile UI state
+let mobileSheetExpanded = false;
+let mobileSheetStartY = 0;
+let mobileSheetCurrentY = 0;
+let mobileSheetIsDragging = false;
+
+// Initialize mobile functionality
+function initMobile() {
+    if (!document.getElementById('mobile-bottom-sheet')) return;
+
+    setupMobileBottomSheet();
+    setupMobileTabs();
+    setupMobileFAB();
+    setupMobileHeader();
+    setupMobileControlSync();
+
+    // Initial sync of mobile UI with state
+    syncMobileUIWithState();
+}
+
+// Bottom sheet drag handling
+function setupMobileBottomSheet() {
+    const sheet = document.getElementById('mobile-bottom-sheet');
+    const handle = document.getElementById('sheet-handle');
+
+    if (!sheet || !handle) return;
+
+    // Handle tap to toggle
+    handle.addEventListener('click', (e) => {
+        if (!mobileSheetIsDragging) {
+            toggleMobileSheet();
+        }
+    });
+
+    // Touch events for drag
+    handle.addEventListener('touchstart', (e) => {
+        mobileSheetIsDragging = false;
+        mobileSheetStartY = e.touches[0].clientY;
+        sheet.style.transition = 'none';
+    }, { passive: true });
+
+    handle.addEventListener('touchmove', (e) => {
+        mobileSheetCurrentY = e.touches[0].clientY;
+        const deltaY = mobileSheetCurrentY - mobileSheetStartY;
+
+        if (Math.abs(deltaY) > 5) {
+            mobileSheetIsDragging = true;
+        }
+
+        if (mobileSheetExpanded) {
+            // Sheet is expanded, allow dragging down
+            if (deltaY > 0) {
+                sheet.style.transform = `translateY(${deltaY}px)`;
+            }
+        } else {
+            // Sheet is collapsed, allow dragging up
+            if (deltaY < 0) {
+                const maxDrag = window.innerHeight * 0.85 - 70;
+                const drag = Math.max(deltaY, -maxDrag);
+                sheet.style.transform = `translateY(calc(100% - 70px + ${drag}px))`;
+            }
+        }
+    }, { passive: true });
+
+    handle.addEventListener('touchend', (e) => {
+        sheet.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+
+        const deltaY = mobileSheetCurrentY - mobileSheetStartY;
+        const threshold = 50;
+
+        if (mobileSheetExpanded) {
+            if (deltaY > threshold) {
+                collapseMobileSheet();
+            } else {
+                expandMobileSheet();
+            }
+        } else {
+            if (deltaY < -threshold) {
+                expandMobileSheet();
+            } else {
+                collapseMobileSheet();
+            }
+        }
+
+        // Reset drag flag after a short delay
+        setTimeout(() => {
+            mobileSheetIsDragging = false;
+        }, 100);
+    });
+
+    // Click outside to collapse (on canvas area)
+    document.querySelector('.canvas-area')?.addEventListener('click', () => {
+        if (mobileSheetExpanded && isMobileView()) {
+            collapseMobileSheet();
+        }
+    });
+}
+
+function toggleMobileSheet() {
+    if (mobileSheetExpanded) {
+        collapseMobileSheet();
+    } else {
+        expandMobileSheet();
+    }
+}
+
+function expandMobileSheet() {
+    const sheet = document.getElementById('mobile-bottom-sheet');
+    if (sheet) {
+        sheet.classList.add('expanded');
+        sheet.style.transform = '';
+        mobileSheetExpanded = true;
+    }
+}
+
+function collapseMobileSheet() {
+    const sheet = document.getElementById('mobile-bottom-sheet');
+    if (sheet) {
+        sheet.classList.remove('expanded');
+        sheet.style.transform = '';
+        mobileSheetExpanded = false;
+    }
+}
+
+// Mobile tab switching
+function setupMobileTabs() {
+    const tabs = document.querySelectorAll('.mobile-tab');
+    const panels = document.querySelectorAll('.mobile-panel');
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const panelId = tab.dataset.panel;
+
+            // Update tab active state
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Update panel visibility
+            panels.forEach(p => p.classList.remove('active'));
+            const panel = document.getElementById('panel-' + panelId);
+            if (panel) {
+                panel.classList.add('active');
+            }
+
+            // Expand sheet when tab is clicked
+            if (!mobileSheetExpanded) {
+                expandMobileSheet();
+            }
+
+            // Scroll to top of panel
+            document.getElementById('sheet-content')?.scrollTo(0, 0);
+        });
+    });
+}
+
+// Mobile FAB buttons
+function setupMobileFAB() {
+    // Upload button
+    const uploadBtn = document.getElementById('mobile-upload-btn');
+    const mobileFileInput = document.getElementById('mobile-file-input');
+
+    if (uploadBtn && mobileFileInput) {
+        uploadBtn.addEventListener('click', () => {
+            mobileFileInput.click();
+        });
+
+        mobileFileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+    }
+
+    // Export button
+    const exportBtn = document.getElementById('mobile-export-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            if (state.screenshots.length === 0) {
+                // Switch to screenshots tab and expand sheet
+                document.querySelector('.mobile-tab[data-panel="screenshots"]')?.click();
+            } else {
+                exportCurrent();
+            }
+        });
+    }
+}
+
+// Mobile header buttons
+function setupMobileHeader() {
+    const aboutBtn = document.getElementById('mobile-about-btn');
+    const settingsBtn = document.getElementById('mobile-settings-btn');
+
+    if (aboutBtn) {
+        aboutBtn.addEventListener('click', () => {
+            document.getElementById('about-modal').classList.add('visible');
+        });
+    }
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            openSettingsModal();
+        });
+    }
+}
+
+// Setup mobile controls to sync with state
+function setupMobileControlSync() {
+    // Mobile upload zone
+    const mobileUploadZone = document.getElementById('mobile-upload-zone');
+    const mobileFileInput = document.getElementById('mobile-file-input');
+
+    if (mobileUploadZone && mobileFileInput) {
+        mobileUploadZone.addEventListener('click', () => mobileFileInput.click());
+        mobileUploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            mobileUploadZone.classList.add('dragover');
+        });
+        mobileUploadZone.addEventListener('dragleave', () => {
+            mobileUploadZone.classList.remove('dragover');
+        });
+        mobileUploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            mobileUploadZone.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+    }
+
+    // Device selector
+    document.querySelectorAll('#mobile-device-selector .device-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            // Update both mobile and desktop selectors
+            document.querySelectorAll('.device-option').forEach(o => o.classList.remove('selected'));
+            document.querySelectorAll(`.device-option[data-device="${opt.dataset.device}"]`).forEach(o => o.classList.add('selected'));
+
+            state.outputDevice = opt.dataset.device;
+
+            const showCustom = state.outputDevice === 'custom';
+            document.getElementById('custom-size-inputs').style.display = showCustom ? 'block' : 'none';
+            document.getElementById('mobile-custom-size-inputs').style.display = showCustom ? 'block' : 'none';
+
+            updateCanvas();
+        });
+    });
+
+    // Custom size inputs
+    setupMobileRangeSync('mobile-custom-width', 'custom-width', (val) => {
+        state.customWidth = parseInt(val) || 1290;
+        updateCanvas();
+    });
+    setupMobileRangeSync('mobile-custom-height', 'custom-height', (val) => {
+        state.customHeight = parseInt(val) || 2796;
+        updateCanvas();
+    });
+
+    // Background type selector
+    document.querySelectorAll('#mobile-bg-type-selector button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Update all background type selectors
+            document.querySelectorAll('#bg-type-selector button, #mobile-bg-type-selector button').forEach(b => {
+                b.classList.toggle('active', b.dataset.type === btn.dataset.type);
+            });
+
+            state.background.type = btn.dataset.type;
+
+            // Update options visibility for both desktop and mobile
+            ['gradient-options', 'solid-options', 'image-options', 'mobile-gradient-options', 'mobile-solid-options', 'mobile-image-options'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const type = id.replace('mobile-', '').replace('-options', '');
+                    el.style.display = type === state.background.type ? 'block' : 'none';
+                }
+            });
+
+            updateCanvas();
+        });
+    });
+
+    // Gradient presets
+    document.querySelectorAll('#mobile-gradient-presets .preset-swatch').forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            // Update all preset selections
+            document.querySelectorAll('.preset-swatch').forEach(s => s.classList.remove('selected'));
+            document.querySelectorAll(`.preset-swatch[data-gradient="${swatch.dataset.gradient}"]`).forEach(s => s.classList.add('selected'));
+
+            // Parse and apply gradient (same logic as desktop)
+            const gradientStr = swatch.dataset.gradient;
+            const angleMatch = gradientStr.match(/(\d+)deg/);
+            const colorMatches = gradientStr.matchAll(/(#[a-fA-F0-9]{6})\s+(\d+)%/g);
+
+            if (angleMatch) {
+                state.background.gradient.angle = parseInt(angleMatch[1]);
+            }
+
+            const stops = [];
+            for (const match of colorMatches) {
+                stops.push({ color: match[1], position: parseInt(match[2]) });
+            }
+            if (stops.length >= 2) {
+                state.background.gradient.stops = stops;
+            }
+
+            syncMobileUIWithState();
+            updateGradientStopsUI();
+            updateCanvas();
+        });
+    });
+
+    // Gradient angle
+    setupMobileSlider('mobile-gradient-angle', 'gradient-angle', 'mobile-gradient-angle-value', 'gradient-angle-value', '°', (val) => {
+        state.background.gradient.angle = parseInt(val);
+        updateCanvas();
+    });
+
+    // Noise toggle
+    setupMobileToggle('mobile-noise-toggle', 'noise-toggle', () => {
+        state.background.noise = !state.background.noise;
+        document.getElementById('noise-options').style.display = state.background.noise ? 'block' : 'none';
+        document.getElementById('mobile-noise-options').style.display = state.background.noise ? 'block' : 'none';
+        updateCanvas();
+    });
+
+    // Noise intensity
+    setupMobileSlider('mobile-noise-intensity', 'noise-intensity', 'mobile-noise-intensity-value', 'noise-intensity-value', '%', (val) => {
+        state.background.noiseIntensity = parseInt(val);
+        updateCanvas();
+    });
+
+    // Screenshot scale
+    setupMobileSlider('mobile-screenshot-scale', 'screenshot-scale', 'mobile-screenshot-scale-value', 'screenshot-scale-value', '%', (val) => {
+        state.screenshot.scale = parseInt(val);
+        updateCanvas();
+    });
+
+    // Screenshot position Y
+    setupMobileSlider('mobile-screenshot-y', 'screenshot-y', 'mobile-screenshot-y-value', 'screenshot-y-value', '%', (val) => {
+        state.screenshot.y = parseInt(val);
+        updateCanvas();
+    });
+
+    // Screenshot position X
+    setupMobileSlider('mobile-screenshot-x', 'screenshot-x', 'mobile-screenshot-x-value', 'screenshot-x-value', '%', (val) => {
+        state.screenshot.x = parseInt(val);
+        updateCanvas();
+    });
+
+    // Corner radius
+    setupMobileSlider('mobile-corner-radius', 'corner-radius', 'mobile-corner-radius-value', 'corner-radius-value', 'px', (val) => {
+        state.screenshot.cornerRadius = parseInt(val);
+        updateCanvas();
+    });
+
+    // Screenshot rotation
+    setupMobileSlider('mobile-screenshot-rotation', 'screenshot-rotation', 'mobile-screenshot-rotation-value', 'screenshot-rotation-value', '°', (val) => {
+        state.screenshot.rotation = parseInt(val);
+        updateCanvas();
+    });
+
+    // Shadow toggle
+    setupMobileToggle('mobile-shadow-toggle', 'shadow-toggle', () => {
+        state.screenshot.shadow.enabled = !state.screenshot.shadow.enabled;
+        document.getElementById('shadow-options').style.display = state.screenshot.shadow.enabled ? 'block' : 'none';
+        document.getElementById('mobile-shadow-options').style.display = state.screenshot.shadow.enabled ? 'block' : 'none';
+        updateCanvas();
+    });
+
+    // Shadow settings
+    setupMobileSlider('mobile-shadow-blur', 'shadow-blur', 'mobile-shadow-blur-value', 'shadow-blur-value', 'px', (val) => {
+        state.screenshot.shadow.blur = parseInt(val);
+        updateCanvas();
+    });
+    setupMobileSlider('mobile-shadow-opacity', 'shadow-opacity', 'mobile-shadow-opacity-value', 'shadow-opacity-value', '%', (val) => {
+        state.screenshot.shadow.opacity = parseInt(val);
+        updateCanvas();
+    });
+    setupMobileSlider('mobile-shadow-y', 'shadow-y', 'mobile-shadow-y-value', 'shadow-y-value', 'px', (val) => {
+        state.screenshot.shadow.y = parseInt(val);
+        updateCanvas();
+    });
+    setupMobileSlider('mobile-shadow-x', 'shadow-x', 'mobile-shadow-x-value', 'shadow-x-value', 'px', (val) => {
+        state.screenshot.shadow.x = parseInt(val);
+        updateCanvas();
+    });
+
+    // Frame toggle
+    setupMobileToggle('mobile-frame-toggle', 'frame-toggle', () => {
+        state.screenshot.frame.enabled = !state.screenshot.frame.enabled;
+        document.getElementById('frame-options').style.display = state.screenshot.frame.enabled ? 'block' : 'none';
+        document.getElementById('mobile-frame-options').style.display = state.screenshot.frame.enabled ? 'block' : 'none';
+        updateCanvas();
+    });
+
+    // Frame settings
+    setupMobileSlider('mobile-frame-width', 'frame-width', 'mobile-frame-width-value', 'frame-width-value', 'px', (val) => {
+        state.screenshot.frame.width = parseInt(val);
+        updateCanvas();
+    });
+    setupMobileSlider('mobile-frame-opacity', 'frame-opacity', 'mobile-frame-opacity-value', 'frame-opacity-value', '%', (val) => {
+        state.screenshot.frame.opacity = parseInt(val);
+        updateCanvas();
+    });
+
+    // 3D toggle
+    setupMobileToggle('mobile-use-3d-toggle', 'use-3d-toggle', () => {
+        state.use3D = !state.use3D;
+
+        // Show/hide options
+        document.getElementById('rotation-3d-options').style.display = state.use3D ? 'block' : 'none';
+        document.getElementById('mobile-rotation-3d-options').style.display = state.use3D ? 'block' : 'none';
+        document.getElementById('2d-only-settings').style.display = state.use3D ? 'none' : 'block';
+        document.getElementById('mobile-2d-only-settings').style.display = state.use3D ? 'none' : 'block';
+        document.getElementById('position-presets-section').style.display = state.use3D ? 'none' : 'block';
+        document.getElementById('mobile-position-presets-section').style.display = state.use3D ? 'none' : 'block';
+
+        if (typeof showThreeJS === 'function') {
+            showThreeJS(state.use3D);
+        }
+        updateCanvas();
+    });
+
+    // 3D rotation controls
+    setupMobileSlider('mobile-rotation-3d-x', 'rotation-3d-x', 'mobile-rotation-3d-x-value', 'rotation-3d-x-value', '°', (val) => {
+        state.rotation3D.x = parseInt(val);
+        if (typeof updateThreeJS === 'function') updateThreeJS();
+        updateCanvas();
+    });
+    setupMobileSlider('mobile-rotation-3d-y', 'rotation-3d-y', 'mobile-rotation-3d-y-value', 'rotation-3d-y-value', '°', (val) => {
+        state.rotation3D.y = parseInt(val);
+        if (typeof updateThreeJS === 'function') updateThreeJS();
+        updateCanvas();
+    });
+    setupMobileSlider('mobile-rotation-3d-z', 'rotation-3d-z', 'mobile-rotation-3d-z-value', 'rotation-3d-z-value', '°', (val) => {
+        state.rotation3D.z = parseInt(val);
+        if (typeof updateThreeJS === 'function') updateThreeJS();
+        updateCanvas();
+    });
+    setupMobileSlider('mobile-scale-3d', 'scale-3d', 'mobile-scale-3d-value', 'scale-3d-value', '%', (val) => {
+        state.scale3D = parseInt(val);
+        if (typeof updateThreeJS === 'function') updateThreeJS();
+        updateCanvas();
+    });
+
+    // Position presets
+    document.querySelectorAll('#mobile-position-presets .position-preset').forEach(preset => {
+        preset.addEventListener('click', () => {
+            // Update all preset selections
+            document.querySelectorAll('.position-preset').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll(`.position-preset[data-preset="${preset.dataset.preset}"]`).forEach(p => p.classList.add('active'));
+
+            applyPositionPreset(preset.dataset.preset);
+            syncMobileUIWithState();
+        });
+    });
+
+    // Text controls
+    setupMobileTextarea('mobile-headline-text', 'headline-text', (val) => {
+        const textSettings = getTextSettings();
+        if (!textSettings.headlines) textSettings.headlines = {};
+        textSettings.headlines[textSettings.currentHeadlineLang || 'en'] = val;
+        updateCanvas();
+    });
+
+    setupMobileTextarea('mobile-subheadline-text', 'subheadline-text', (val) => {
+        const textSettings = getTextSettings();
+        if (!textSettings.subheadlines) textSettings.subheadlines = {};
+        textSettings.subheadlines[textSettings.currentSubheadlineLang || 'en'] = val;
+        updateCanvas();
+    });
+
+    setupMobileSlider('mobile-headline-size', 'headline-size', 'mobile-headline-size-value', 'headline-size-value', 'px', (val) => {
+        state.text.headlineSize = parseInt(val);
+        updateCanvas();
+    });
+
+    setupMobileSlider('mobile-subheadline-size', 'subheadline-size', 'mobile-subheadline-size-value', 'subheadline-size-value', 'px', (val) => {
+        state.text.subheadlineSize = parseInt(val);
+        updateCanvas();
+    });
+
+    setupMobileSlider('mobile-subheadline-opacity', 'subheadline-opacity', 'mobile-subheadline-opacity-value', 'subheadline-opacity-value', '%', (val) => {
+        state.text.subheadlineOpacity = parseInt(val);
+        updateCanvas();
+    });
+
+    setupMobileSlider('mobile-text-offset-y', 'text-offset-y', 'mobile-text-offset-y-value', 'text-offset-y-value', '%', (val) => {
+        state.text.offsetY = parseInt(val);
+        updateCanvas();
+    });
+
+    setupMobileSlider('mobile-line-height', 'line-height', 'mobile-line-height-value', 'line-height-value', '%', (val) => {
+        state.text.lineHeight = parseInt(val);
+        updateCanvas();
+    });
+
+    // Text position buttons
+    document.querySelectorAll('#mobile-text-position button').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#text-position button, #mobile-text-position button').forEach(b => {
+                b.classList.toggle('active', b.dataset.position === btn.dataset.position);
+            });
+            state.text.position = btn.dataset.position;
+            updateCanvas();
+        });
+    });
+
+    // Export buttons
+    document.getElementById('mobile-export-current')?.addEventListener('click', exportCurrent);
+    document.getElementById('mobile-export-all')?.addEventListener('click', exportAll);
+
+    // Project controls
+    setupMobileProjectControls();
+}
+
+// Helper: Setup slider sync between mobile and desktop
+function setupMobileSlider(mobileId, desktopId, mobileValueId, desktopValueId, suffix, callback) {
+    const mobileInput = document.getElementById(mobileId);
+    const desktopInput = document.getElementById(desktopId);
+
+    if (mobileInput) {
+        mobileInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            if (desktopInput) desktopInput.value = val;
+
+            const mobileValue = document.getElementById(mobileValueId);
+            const desktopValue = document.getElementById(desktopValueId);
+            if (mobileValue) mobileValue.textContent = val + suffix;
+            if (desktopValue) desktopValue.textContent = val + suffix;
+
+            callback(val);
+        });
+    }
+}
+
+// Helper: Setup toggle sync between mobile and desktop
+function setupMobileToggle(mobileId, desktopId, callback) {
+    const mobileToggle = document.getElementById(mobileId);
+    const desktopToggle = document.getElementById(desktopId);
+
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', () => {
+            mobileToggle.classList.toggle('active');
+            if (desktopToggle) desktopToggle.classList.toggle('active');
+            callback();
+        });
+    }
+}
+
+// Helper: Setup textarea sync
+function setupMobileTextarea(mobileId, desktopId, callback) {
+    const mobileTextarea = document.getElementById(mobileId);
+    const desktopTextarea = document.getElementById(desktopId);
+
+    if (mobileTextarea) {
+        mobileTextarea.addEventListener('input', (e) => {
+            if (desktopTextarea) desktopTextarea.value = e.target.value;
+            callback(e.target.value);
+        });
+    }
+}
+
+// Helper: Setup range sync
+function setupMobileRangeSync(mobileId, desktopId, callback) {
+    const mobileInput = document.getElementById(mobileId);
+    const desktopInput = document.getElementById(desktopId);
+
+    if (mobileInput) {
+        mobileInput.addEventListener('input', (e) => {
+            if (desktopInput) desktopInput.value = e.target.value;
+            callback(e.target.value);
+        });
+    }
+}
+
+// Mobile project controls
+function setupMobileProjectControls() {
+    // Sync project selector
+    const mobileSelector = document.getElementById('mobile-project-selector');
+    const desktopSelector = document.getElementById('project-selector');
+
+    if (mobileSelector) {
+        mobileSelector.addEventListener('change', (e) => {
+            if (desktopSelector) desktopSelector.value = e.target.value;
+            switchProject(e.target.value);
+        });
+    }
+
+    // Project buttons
+    document.getElementById('mobile-new-project-btn')?.addEventListener('click', () => {
+        document.getElementById('new-project-btn')?.click();
+    });
+    document.getElementById('mobile-save-project-btn')?.addEventListener('click', () => {
+        document.getElementById('save-project-btn')?.click();
+    });
+    document.getElementById('mobile-rename-project-btn')?.addEventListener('click', () => {
+        document.getElementById('rename-project-btn')?.click();
+    });
+    document.getElementById('mobile-delete-project-btn')?.addEventListener('click', () => {
+        document.getElementById('delete-project-btn')?.click();
+    });
+}
+
+// Sync mobile UI with current state
+function syncMobileUIWithState() {
+    // Device selector
+    document.querySelectorAll('#mobile-device-selector .device-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.device === state.outputDevice);
+    });
+    const mobileCustomInputs = document.getElementById('mobile-custom-size-inputs');
+    if (mobileCustomInputs) {
+        mobileCustomInputs.style.display = state.outputDevice === 'custom' ? 'block' : 'none';
+    }
+
+    // Background type
+    document.querySelectorAll('#mobile-bg-type-selector button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === state.background.type);
+    });
+
+    const mobileGradientOptions = document.getElementById('mobile-gradient-options');
+    const mobileSolidOptions = document.getElementById('mobile-solid-options');
+    const mobileImageOptions = document.getElementById('mobile-image-options');
+    if (mobileGradientOptions) mobileGradientOptions.style.display = state.background.type === 'gradient' ? 'block' : 'none';
+    if (mobileSolidOptions) mobileSolidOptions.style.display = state.background.type === 'solid' ? 'block' : 'none';
+    if (mobileImageOptions) mobileImageOptions.style.display = state.background.type === 'image' ? 'block' : 'none';
+
+    // Gradient
+    syncMobileValue('mobile-gradient-angle', state.background.gradient.angle);
+    syncMobileValueLabel('mobile-gradient-angle-value', state.background.gradient.angle + '°');
+
+    // Noise
+    document.getElementById('mobile-noise-toggle')?.classList.toggle('active', state.background.noise);
+    const mobileNoiseOptions = document.getElementById('mobile-noise-options');
+    if (mobileNoiseOptions) mobileNoiseOptions.style.display = state.background.noise ? 'block' : 'none';
+    syncMobileValue('mobile-noise-intensity', state.background.noiseIntensity);
+    syncMobileValueLabel('mobile-noise-intensity-value', state.background.noiseIntensity + '%');
+
+    // Screenshot settings
+    syncMobileValue('mobile-screenshot-scale', state.screenshot.scale);
+    syncMobileValueLabel('mobile-screenshot-scale-value', state.screenshot.scale + '%');
+    syncMobileValue('mobile-screenshot-y', state.screenshot.y);
+    syncMobileValueLabel('mobile-screenshot-y-value', state.screenshot.y + '%');
+    syncMobileValue('mobile-screenshot-x', state.screenshot.x);
+    syncMobileValueLabel('mobile-screenshot-x-value', state.screenshot.x + '%');
+    syncMobileValue('mobile-corner-radius', state.screenshot.cornerRadius);
+    syncMobileValueLabel('mobile-corner-radius-value', state.screenshot.cornerRadius + 'px');
+    syncMobileValue('mobile-screenshot-rotation', state.screenshot.rotation);
+    syncMobileValueLabel('mobile-screenshot-rotation-value', state.screenshot.rotation + '°');
+
+    // Shadow
+    document.getElementById('mobile-shadow-toggle')?.classList.toggle('active', state.screenshot.shadow.enabled);
+    const mobileShadowOptions = document.getElementById('mobile-shadow-options');
+    if (mobileShadowOptions) mobileShadowOptions.style.display = state.screenshot.shadow.enabled ? 'block' : 'none';
+    syncMobileValue('mobile-shadow-blur', state.screenshot.shadow.blur);
+    syncMobileValueLabel('mobile-shadow-blur-value', state.screenshot.shadow.blur + 'px');
+    syncMobileValue('mobile-shadow-opacity', state.screenshot.shadow.opacity);
+    syncMobileValueLabel('mobile-shadow-opacity-value', state.screenshot.shadow.opacity + '%');
+    syncMobileValue('mobile-shadow-y', state.screenshot.shadow.y);
+    syncMobileValueLabel('mobile-shadow-y-value', state.screenshot.shadow.y + 'px');
+    syncMobileValue('mobile-shadow-x', state.screenshot.shadow.x);
+    syncMobileValueLabel('mobile-shadow-x-value', state.screenshot.shadow.x + 'px');
+
+    // Frame
+    document.getElementById('mobile-frame-toggle')?.classList.toggle('active', state.screenshot.frame.enabled);
+    const mobileFrameOptions = document.getElementById('mobile-frame-options');
+    if (mobileFrameOptions) mobileFrameOptions.style.display = state.screenshot.frame.enabled ? 'block' : 'none';
+    syncMobileValue('mobile-frame-width', state.screenshot.frame.width);
+    syncMobileValueLabel('mobile-frame-width-value', state.screenshot.frame.width + 'px');
+    syncMobileValue('mobile-frame-opacity', state.screenshot.frame.opacity);
+    syncMobileValueLabel('mobile-frame-opacity-value', state.screenshot.frame.opacity + '%');
+
+    // 3D
+    document.getElementById('mobile-use-3d-toggle')?.classList.toggle('active', state.use3D);
+    const mobile3DOptions = document.getElementById('mobile-rotation-3d-options');
+    const mobile2DSettings = document.getElementById('mobile-2d-only-settings');
+    const mobilePositionPresets = document.getElementById('mobile-position-presets-section');
+    if (mobile3DOptions) mobile3DOptions.style.display = state.use3D ? 'block' : 'none';
+    if (mobile2DSettings) mobile2DSettings.style.display = state.use3D ? 'none' : 'block';
+    if (mobilePositionPresets) mobilePositionPresets.style.display = state.use3D ? 'none' : 'block';
+
+    syncMobileValue('mobile-rotation-3d-x', state.rotation3D.x);
+    syncMobileValueLabel('mobile-rotation-3d-x-value', state.rotation3D.x + '°');
+    syncMobileValue('mobile-rotation-3d-y', state.rotation3D.y);
+    syncMobileValueLabel('mobile-rotation-3d-y-value', state.rotation3D.y + '°');
+    syncMobileValue('mobile-rotation-3d-z', state.rotation3D.z);
+    syncMobileValueLabel('mobile-rotation-3d-z-value', state.rotation3D.z + '°');
+    syncMobileValue('mobile-scale-3d', state.scale3D);
+    syncMobileValueLabel('mobile-scale-3d-value', state.scale3D + '%');
+
+    // Text
+    const currentHeadline = state.text.headlines ? (state.text.headlines[state.text.currentHeadlineLang || 'en'] || '') : '';
+    const mobileHeadlineText = document.getElementById('mobile-headline-text');
+    if (mobileHeadlineText) mobileHeadlineText.value = currentHeadline;
+
+    syncMobileValue('mobile-headline-size', state.text.headlineSize);
+    syncMobileValueLabel('mobile-headline-size-value', state.text.headlineSize + 'px');
+
+    const currentSubheadline = state.text.subheadlines ? (state.text.subheadlines[state.text.currentSubheadlineLang || 'en'] || '') : '';
+    const mobileSubheadlineText = document.getElementById('mobile-subheadline-text');
+    if (mobileSubheadlineText) mobileSubheadlineText.value = currentSubheadline;
+
+    syncMobileValue('mobile-subheadline-size', state.text.subheadlineSize);
+    syncMobileValueLabel('mobile-subheadline-size-value', state.text.subheadlineSize + 'px');
+    syncMobileValue('mobile-subheadline-opacity', state.text.subheadlineOpacity);
+    syncMobileValueLabel('mobile-subheadline-opacity-value', state.text.subheadlineOpacity + '%');
+    syncMobileValue('mobile-text-offset-y', state.text.offsetY);
+    syncMobileValueLabel('mobile-text-offset-y-value', state.text.offsetY + '%');
+    syncMobileValue('mobile-line-height', state.text.lineHeight);
+    syncMobileValueLabel('mobile-line-height-value', state.text.lineHeight + '%');
+
+    // Text position
+    document.querySelectorAll('#mobile-text-position button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.position === state.text.position);
+    });
+
+    // Update mobile screenshot list
+    updateMobileScreenshotList();
+
+    // Update mobile project selector
+    updateMobileProjectSelector();
+}
+
+// Helper functions for syncing values
+function syncMobileValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
+}
+
+function syncMobileValueLabel(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+}
+
+// Update mobile screenshot list
+function updateMobileScreenshotList() {
+    const mobileList = document.getElementById('mobile-screenshot-list');
+    if (!mobileList) return;
+
+    mobileList.innerHTML = '';
+
+    state.screenshots.forEach((screenshot, index) => {
+        const item = document.createElement('div');
+        item.className = 'screenshot-item' + (index === state.selectedIndex ? ' selected' : '');
+        item.innerHTML = `
+            <img src="${screenshot.image.src}" class="screenshot-thumb" alt="Screenshot ${index + 1}">
+            <div class="screenshot-info">
+                <div class="screenshot-name">${screenshot.name}</div>
+                <div class="screenshot-device">${screenshot.deviceType}</div>
+            </div>
+            <button class="screenshot-delete" data-index="${index}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 6L6 18M6 6l12 12"/>
+                </svg>
+            </button>
+        `;
+
+        item.addEventListener('click', (e) => {
+            if (!e.target.closest('.screenshot-delete')) {
+                state.selectedIndex = index;
+                updateScreenshotList();
+                updateMobileScreenshotList();
+                syncMobileUIWithState();
+                updateCanvas();
+            }
+        });
+
+        item.querySelector('.screenshot-delete').addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.screenshots.splice(index, 1);
+            if (state.selectedIndex >= state.screenshots.length) {
+                state.selectedIndex = Math.max(0, state.screenshots.length - 1);
+            }
+            updateScreenshotList();
+            updateMobileScreenshotList();
+            updateCanvas();
+        });
+
+        mobileList.appendChild(item);
+    });
+}
+
+// Update mobile project selector
+function updateMobileProjectSelector() {
+    const mobileSelector = document.getElementById('mobile-project-selector');
+    if (!mobileSelector) return;
+
+    mobileSelector.innerHTML = '';
+    projects.forEach(project => {
+        const option = document.createElement('option');
+        option.value = project.id;
+        option.textContent = project.name;
+        option.selected = project.id === currentProjectId;
+        mobileSelector.appendChild(option);
+    });
+}
+
+// Override updateScreenshotList to also update mobile list
+const originalUpdateScreenshotList = updateScreenshotList;
+updateScreenshotList = function() {
+    originalUpdateScreenshotList();
+    updateMobileScreenshotList();
+};
+
+// Override syncUIWithState to also sync mobile
+const originalSyncUIWithState = syncUIWithState;
+syncUIWithState = function() {
+    originalSyncUIWithState();
+    syncMobileUIWithState();
+};
+
+// Override updateProjectSelector to also update mobile
+const originalUpdateProjectSelector = updateProjectSelector;
+updateProjectSelector = function() {
+    originalUpdateProjectSelector();
+    updateMobileProjectSelector();
+};
+
+// Initialize mobile on DOM ready
+document.addEventListener('DOMContentLoaded', initMobile);
+
+// Also init on load (backup)
+window.addEventListener('load', initMobile);

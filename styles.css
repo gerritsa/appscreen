@@ -1357,3 +1357,611 @@ input[type="range"]::-webkit-slider-thumb {
     margin: -12px;
     margin-bottom: 0;
 }
+
+/* ===========================
+   MOBILE RESPONSIVE STYLES
+   =========================== */
+
+/* Mobile Header - only visible on mobile */
+.mobile-header {
+    display: none;
+}
+
+/* Mobile Bottom Sheet */
+.mobile-bottom-sheet {
+    display: none;
+}
+
+/* Mobile FAB */
+.mobile-fab {
+    display: none;
+}
+
+/* Mobile Tab Bar */
+.mobile-tab-bar {
+    display: none;
+}
+
+/* Tablet Breakpoint (768px - 1024px) */
+@media (max-width: 1024px) {
+    .app-container {
+        grid-template-columns: 280px 1fr 300px;
+    }
+
+    .canvas-area {
+        padding: 20px;
+    }
+
+    .preset-positions {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Mobile Breakpoint (< 768px) */
+@media (max-width: 768px) {
+    /* Hide desktop sidebars */
+    .sidebar {
+        display: none;
+    }
+
+    .sidebar-right {
+        display: none;
+    }
+
+    /* Reset grid to single column */
+    .app-container {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+
+    /* Mobile Header */
+    .mobile-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border-color);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .mobile-header-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .mobile-header-buttons {
+        display: flex;
+        gap: 8px;
+    }
+
+    .mobile-header-btn {
+        width: 36px;
+        height: 36px;
+        border: none;
+        border-radius: 8px;
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .mobile-header-btn:hover,
+    .mobile-header-btn:active {
+        background: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    .mobile-header-btn img {
+        filter: invert(0.6);
+    }
+
+    .mobile-header-btn:hover img,
+    .mobile-header-btn:active img {
+        filter: invert(1);
+    }
+
+    /* Canvas area adjustments */
+    .canvas-area {
+        flex: 1;
+        padding: 16px;
+        padding-bottom: 100px; /* Space for FAB and bottom sheet peek */
+        min-height: 0;
+        overflow: auto;
+    }
+
+    .canvas-wrapper {
+        max-width: 100%;
+        margin: 0 auto;
+    }
+
+    #preview-canvas {
+        max-height: 50vh;
+        width: auto;
+        max-width: 100%;
+    }
+
+    #threejs-container {
+        width: 100% !important;
+        height: 50vh !important;
+        max-height: 400px;
+    }
+
+    .no-screenshot svg {
+        width: 60px;
+        height: 60px;
+    }
+
+    .no-screenshot p {
+        font-size: 14px;
+    }
+
+    /* Mobile FAB (Floating Action Button) */
+    .mobile-fab {
+        display: flex;
+        position: fixed;
+        bottom: 90px;
+        right: 16px;
+        z-index: 90;
+        gap: 12px;
+        flex-direction: column;
+    }
+
+    .fab-button {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        transition: all 0.2s;
+    }
+
+    .fab-button:active {
+        transform: scale(0.95);
+    }
+
+    .fab-button.primary {
+        background: var(--accent);
+        color: white;
+    }
+
+    .fab-button.secondary {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .fab-button svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* Mobile Bottom Sheet */
+    .mobile-bottom-sheet {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-secondary);
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        z-index: 200;
+        max-height: 85vh;
+        max-height: 85dvh;
+        transform: translateY(calc(100% - 70px));
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .mobile-bottom-sheet.expanded {
+        transform: translateY(0);
+    }
+
+    .mobile-bottom-sheet.hidden {
+        transform: translateY(100%);
+    }
+
+    /* Bottom sheet handle */
+    .sheet-handle {
+        display: flex;
+        justify-content: center;
+        padding: 12px;
+        cursor: grab;
+    }
+
+    .sheet-handle::before {
+        content: '';
+        width: 36px;
+        height: 4px;
+        background: var(--border-color);
+        border-radius: 2px;
+    }
+
+    .sheet-handle:active {
+        cursor: grabbing;
+    }
+
+    /* Mobile Tab Bar inside sheet */
+    .mobile-tab-bar {
+        display: flex;
+        gap: 4px;
+        padding: 0 12px 12px;
+        background: var(--bg-secondary);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .mobile-tab-bar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .mobile-tab {
+        flex: 0 0 auto;
+        padding: 10px 16px;
+        border: none;
+        background: var(--bg-tertiary);
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        border-radius: 20px;
+        transition: all 0.2s;
+        white-space: nowrap;
+    }
+
+    .mobile-tab.active {
+        background: var(--accent);
+        color: white;
+    }
+
+    .mobile-tab:active {
+        transform: scale(0.95);
+    }
+
+    /* Sheet content area */
+    .sheet-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 16px 16px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Mobile panel styles */
+    .mobile-panel {
+        display: none;
+    }
+
+    .mobile-panel.active {
+        display: block;
+    }
+
+    /* Adjust control groups for mobile */
+    .sheet-content .control-group {
+        margin-bottom: 16px;
+    }
+
+    .sheet-content .control-label {
+        font-size: 13px;
+    }
+
+    .sheet-content h2 {
+        font-size: 12px;
+        margin-bottom: 12px;
+        margin-top: 16px;
+    }
+
+    .sheet-content h2:first-child {
+        margin-top: 0;
+    }
+
+    .sheet-content h3 {
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .sheet-content .divider {
+        margin: 16px 0;
+    }
+
+    /* Responsive grids for mobile */
+    .sheet-content .device-selector {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .sheet-content .preset-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+
+    .sheet-content .preset-positions {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+
+    .sheet-content .position-preset {
+        padding: 8px 2px;
+    }
+
+    .sheet-content .position-preset svg {
+        width: 28px;
+        height: 40px;
+    }
+
+    .sheet-content .position-preset span {
+        font-size: 8px;
+    }
+
+    /* Screenshot list in mobile */
+    .sheet-content .screenshot-list {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .sheet-content .screenshot-item {
+        padding: 8px;
+    }
+
+    .sheet-content .screenshot-thumb {
+        width: 32px;
+        height: 56px;
+    }
+
+    /* Upload zone mobile */
+    .sheet-content .upload-zone {
+        padding: 16px;
+    }
+
+    .sheet-content .upload-icon {
+        width: 36px;
+        height: 36px;
+        margin-bottom: 8px;
+    }
+
+    .sheet-content .upload-text {
+        font-size: 13px;
+    }
+
+    /* Button groups mobile */
+    .sheet-content .btn-group {
+        flex-wrap: wrap;
+    }
+
+    .sheet-content .btn-group button {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    /* Export buttons in sheet */
+    .sheet-content .export-section {
+        padding: 16px 0 0 0;
+        border-top: 1px solid var(--border-color);
+        margin-top: 16px;
+        background: transparent;
+    }
+
+    .sheet-content .export-btn {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+
+    /* Tabs in sheet (for right sidebar content) */
+    .sheet-content .tabs {
+        margin-bottom: 12px;
+    }
+
+    .sheet-content .tab {
+        padding: 6px;
+        font-size: 12px;
+    }
+
+    /* Project controls mobile */
+    .sheet-content .project-controls select {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .sheet-content .project-buttons {
+        margin-top: 8px;
+    }
+
+    .sheet-content .project-btn {
+        padding: 10px 8px;
+    }
+
+    /* Language selector mobile */
+    .sheet-content .label-with-action {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .sheet-content .language-selector {
+        flex-wrap: wrap;
+    }
+
+    /* Range inputs touch-friendly */
+    .sheet-content input[type="range"] {
+        height: 6px;
+    }
+
+    .sheet-content input[type="range"]::-webkit-slider-thumb {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* Modals on mobile */
+    .modal {
+        width: 95%;
+        max-width: none;
+        padding: 24px;
+        margin: 16px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-buttons {
+        flex-direction: column;
+    }
+
+    .modal-btn {
+        padding: 14px 20px;
+    }
+
+    .translate-modal {
+        max-width: none;
+    }
+
+    .settings-modal {
+        max-width: none;
+    }
+
+    .translate-targets {
+        max-height: 200px;
+    }
+
+    /* Language dropdown mobile */
+    .language-dropdown {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        max-height: 50vh;
+        border-radius: 20px 20px 0 0;
+        padding: 16px;
+        z-index: 300;
+    }
+
+    .language-dropdown.visible {
+        display: flex;
+    }
+
+    /* Overlay for language dropdown */
+    .language-dropdown-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 250;
+    }
+
+    .language-dropdown-overlay.visible {
+        display: block;
+    }
+}
+
+/* Small mobile (< 380px) */
+@media (max-width: 380px) {
+    .mobile-header {
+        padding: 10px 12px;
+    }
+
+    .mobile-header-title {
+        font-size: 15px;
+    }
+
+    .sheet-content .device-selector {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .sheet-content .preset-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .sheet-content .preset-positions {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .mobile-tab {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .fab-button {
+        width: 50px;
+        height: 50px;
+    }
+}
+
+/* Landscape mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .canvas-area {
+        padding: 12px;
+        padding-bottom: 80px;
+    }
+
+    #preview-canvas {
+        max-height: 70vh;
+    }
+
+    .mobile-bottom-sheet {
+        max-height: 70vh;
+    }
+
+    .mobile-fab {
+        bottom: 80px;
+        flex-direction: row;
+    }
+}
+
+/* Touch-specific enhancements */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    .sheet-content input[type="range"]::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+    }
+
+    .toggle {
+        width: 50px;
+        height: 28px;
+    }
+
+    .toggle::after {
+        width: 24px;
+        height: 24px;
+    }
+
+    .toggle.active::after {
+        left: 24px;
+    }
+
+    /* Prevent text selection on interactive elements */
+    .mobile-tab,
+    .fab-button,
+    .sheet-handle,
+    .position-preset,
+    .preset-swatch,
+    .device-option {
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Remove hover states that feel weird on touch */
+    .mobile-tab:hover {
+        background: var(--bg-tertiary);
+    }
+
+    .mobile-tab.active:hover {
+        background: var(--accent);
+    }
+}
