@@ -2434,44 +2434,16 @@ let mobileSheetIsDragging = false;
 
 // Initialize mobile functionality
 function initMobile() {
-    console.log('initMobile called');
-    if (!document.getElementById('mobile-bottom-sheet')) {
-        console.log('mobile-bottom-sheet not found');
-        return;
-    }
+    if (!document.getElementById('mobile-bottom-sheet')) return;
 
-    try {
-        setupMobileBottomSheet();
-        console.log('setupMobileBottomSheet done');
-    } catch (e) { console.error('setupMobileBottomSheet error:', e); }
+    setupMobileBottomSheet();
+    setupMobileTabs();
+    setupMobileFAB();
+    setupMobileHeader();
+    setupMobileControlSync();
 
-    try {
-        setupMobileTabs();
-        console.log('setupMobileTabs done');
-    } catch (e) { console.error('setupMobileTabs error:', e); }
-
-    try {
-        setupMobileFAB();
-        console.log('setupMobileFAB done');
-    } catch (e) { console.error('setupMobileFAB error:', e); }
-
-    try {
-        setupMobileHeader();
-        console.log('setupMobileHeader done');
-    } catch (e) { console.error('setupMobileHeader error:', e); }
-
-    try {
-        setupMobileControlSync();
-        console.log('setupMobileControlSync done');
-    } catch (e) { console.error('setupMobileControlSync error:', e); }
-
-    try {
-        // Initial sync of mobile UI with state
-        syncMobileUIWithState();
-        console.log('syncMobileUIWithState done');
-    } catch (e) { console.error('syncMobileUIWithState error:', e); }
-
-    console.log('initMobile complete');
+    // Initial sync of mobile UI with state
+    syncMobileUIWithState();
 }
 
 // Bottom sheet drag handling
