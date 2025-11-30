@@ -67,6 +67,16 @@ Your API key is stored locally in your browser and only sent to Anthropic's API.
 - IndexedDB for local storage
 - Claude API for translations
 
+## Apps Using This Project
+
+Built something with this tool? Add your app to the list by submitting a pull request!
+
+| App | Description | Link |    
+|-----|-------------|------|
+| Cable | Manage your 12V systems like Boats and RVs | [cable.yuzuhub.com](https://cable.yuzuhub.com) |
+| Eno | Wine pairings and food pairings made easy | [eno.yuzuhub.com](https://eno.yuzuhub.com) |
+| *Your app here* | *Submit a PR to add your app* | *Your app link* |
+
 ## License
 
 MIT License - feel free to use, modify, and distribute.
