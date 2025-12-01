@@ -281,6 +281,140 @@ input[type="range"]::-webkit-slider-thumb {
     color: var(--text-primary);
 }
 
+/* Text style bar - compact row with all text formatting options */
+.text-style-bar {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    background: var(--bg-tertiary);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.text-style-bar input[type="number"] {
+    width: 52px;
+    padding: 6px 8px;
+    background: var(--bg-primary);
+    border: none;
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    text-align: center;
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.text-style-bar input[type="number"]::-webkit-outer-spin-button,
+.text-style-bar input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.text-style-bar input[type="color"] {
+    width: 32px;
+    height: 32px;
+    padding: 2px;
+    background: var(--bg-primary);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.text-style-bar input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 2px;
+}
+
+.text-style-bar input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+}
+
+.text-style-bar select {
+    flex: 1;
+    min-width: 70px;
+    padding: 6px 8px;
+    background: var(--bg-primary);
+    border: none;
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.text-style-bar input[type="range"] {
+    width: 50px;
+    height: 32px;
+    margin: 0;
+    padding: 0 4px;
+    background: var(--bg-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    accent-color: var(--accent);
+}
+
+.text-style-bar button {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.text-style-bar button:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.text-style-bar button.active {
+    background: var(--accent);
+    color: white;
+}
+
+.text-style-bar button svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Legacy text-style-group - keeping for backwards compatibility */
+.text-style-group {
+    display: flex;
+    gap: 4px;
+}
+
+.text-style-group select {
+    flex: 1;
+    min-width: 90px;
+    padding: 8px 10px;
+    background: var(--bg-primary);
+    border: none;
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.text-style-group button {
+    flex: 0 0 auto;
+    width: 36px;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-style-group button svg {
+    width: 16px;
+    height: 16px;
+}
+
 /* Gradient editor */
 .gradient-stops {
     display: flex;
@@ -924,7 +1058,173 @@ input[type="range"]::-webkit-slider-thumb {
     margin: 20px 0;
 }
 
-/* Font selector */
+/* Font picker */
+.font-picker {
+    position: relative;
+}
+
+.font-picker-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.font-picker-trigger:hover {
+    border-color: var(--accent);
+}
+
+.font-picker-trigger:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+}
+
+.font-picker-preview {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.font-picker-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    display: none;
+    max-height: 400px;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.font-picker-dropdown.open {
+    display: flex;
+}
+
+.font-picker-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.font-picker-search svg {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.font-picker-search input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+}
+
+.font-picker-search input::placeholder {
+    color: var(--text-secondary);
+}
+
+.font-picker-categories {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.font-category {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.font-category:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.font-category.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.font-picker-list {
+    overflow-y: auto;
+    max-height: 300px;
+    padding: 4px 0;
+}
+
+.font-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.font-option:hover {
+    background: var(--bg-tertiary);
+}
+
+.font-option.selected {
+    background: rgba(10, 132, 255, 0.15);
+}
+
+.font-option-name {
+    font-size: 14px;
+    line-height: 40px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.font-option-category {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.font-option-loading {
+    font-size: 11px;
+    color: var(--accent);
+}
+
+.font-picker-empty {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+/* Legacy font preview (unused but kept for compatibility) */
 .font-preview {
     padding: 8px 12px;
     background: var(--bg-tertiary);
