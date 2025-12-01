@@ -146,16 +146,30 @@
 
         <!-- Main Canvas Area -->
         <div class="canvas-area">
-            <div class="canvas-wrapper" id="canvas-wrapper">
-                <canvas id="preview-canvas"></canvas>
-                <div id="threejs-container" style="display: none;"></div>
-                <div class="no-screenshot" id="no-screenshot">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-                        <rect x="3" y="3" width="18" height="18" rx="2"/>
-                        <circle cx="8.5" cy="8.5" r="1.5"/>
-                        <path d="M21 15l-5-5L5 21"/>
-                    </svg>
-                    <p>Upload screenshots to get started</p>
+            <div class="preview-strip">
+                <div class="side-preview side-preview-far-left" id="side-preview-far-left">
+                    <canvas id="preview-canvas-far-left"></canvas>
+                </div>
+                <div class="side-preview side-preview-left" id="side-preview-left">
+                    <canvas id="preview-canvas-left"></canvas>
+                </div>
+                <div class="canvas-wrapper" id="canvas-wrapper">
+                    <canvas id="preview-canvas"></canvas>
+                    <div id="threejs-container" style="display: none;"></div>
+                    <div class="no-screenshot" id="no-screenshot">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                        <p>Upload screenshots to get started</p>
+                    </div>
+                </div>
+                <div class="side-preview side-preview-right" id="side-preview-right">
+                    <canvas id="preview-canvas-right"></canvas>
+                </div>
+                <div class="side-preview side-preview-far-right" id="side-preview-far-right">
+                    <canvas id="preview-canvas-far-right"></canvas>
                 </div>
             </div>
         </div>

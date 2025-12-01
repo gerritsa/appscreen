@@ -738,7 +738,23 @@ const deviceDimensions = {
 // DOM elements
 const canvas = document.getElementById('preview-canvas');
 const ctx = canvas.getContext('2d');
+const canvasLeft = document.getElementById('preview-canvas-left');
+const ctxLeft = canvasLeft.getContext('2d');
+const canvasRight = document.getElementById('preview-canvas-right');
+const ctxRight = canvasRight.getContext('2d');
+const canvasFarLeft = document.getElementById('preview-canvas-far-left');
+const ctxFarLeft = canvasFarLeft.getContext('2d');
+const canvasFarRight = document.getElementById('preview-canvas-far-right');
+const ctxFarRight = canvasFarRight.getContext('2d');
+const sidePreviewLeft = document.getElementById('side-preview-left');
+const sidePreviewRight = document.getElementById('side-preview-right');
+const sidePreviewFarLeft = document.getElementById('side-preview-far-left');
+const sidePreviewFarRight = document.getElementById('side-preview-far-right');
+const previewStrip = document.querySelector('.preview-strip');
+const canvasWrapper = document.getElementById('canvas-wrapper');
 const uploadZone = document.getElementById('upload-zone');
+
+let isSliding = false;
 const fileInput = document.getElementById('file-input');
 const screenshotList = document.getElementById('screenshot-list');
 const noScreenshot = document.getElementById('no-screenshot');
@@ -2999,6 +3015,348 @@ function updateCanvas() {
 
     // Draw text
     drawText();
+
+    // Update side previews
+    updateSidePreviews();
+}
+
+function updateSidePreviews() {
+    const dims = getCanvasDimensions();
+    // Same scale as main preview
+    const maxPreviewWidth = 400;
+    const maxPreviewHeight = 700;
+    const previewScale = Math.min(maxPreviewWidth / dims.width, maxPreviewHeight / dims.height);
+
+    // Calculate main canvas display width and position side previews with 10px gap
+    const mainCanvasWidth = dims.width * previewScale;
+    const gap = 10;
+    const sideOffset = mainCanvasWidth / 2 + gap;
+    const farSideOffset = sideOffset + mainCanvasWidth + gap;
+
+    // Previous screenshot (left, index - 1)
+    const prevIndex = state.selectedIndex - 1;
+    if (prevIndex >= 0 && state.screenshots.length > 1) {
+        sidePreviewLeft.classList.remove('hidden');
+        sidePreviewLeft.style.right = `calc(50% + ${sideOffset}px)`;
+        renderScreenshotToCanvas(prevIndex, canvasLeft, ctxLeft, dims, previewScale);
+        // Click to select previous with animation
+        sidePreviewLeft.onclick = () => {
+            if (isSliding) return;
+            slideToScreenshot(prevIndex, 'left');
+        };
+    } else {
+        sidePreviewLeft.classList.add('hidden');
+    }
+
+    // Far previous screenshot (far left, index - 2)
+    const farPrevIndex = state.selectedIndex - 2;
+    if (farPrevIndex >= 0 && state.screenshots.length > 2) {
+        sidePreviewFarLeft.classList.remove('hidden');
+        sidePreviewFarLeft.style.right = `calc(50% + ${farSideOffset}px)`;
+        renderScreenshotToCanvas(farPrevIndex, canvasFarLeft, ctxFarLeft, dims, previewScale);
+    } else {
+        sidePreviewFarLeft.classList.add('hidden');
+    }
+
+    // Next screenshot (right, index + 1)
+    const nextIndex = state.selectedIndex + 1;
+    if (nextIndex < state.screenshots.length && state.screenshots.length > 1) {
+        sidePreviewRight.classList.remove('hidden');
+        sidePreviewRight.style.left = `calc(50% + ${sideOffset}px)`;
+        renderScreenshotToCanvas(nextIndex, canvasRight, ctxRight, dims, previewScale);
+        // Click to select next with animation
+        sidePreviewRight.onclick = () => {
+            if (isSliding) return;
+            slideToScreenshot(nextIndex, 'right');
+        };
+    } else {
+        sidePreviewRight.classList.add('hidden');
+    }
+
+    // Far next screenshot (far right, index + 2)
+    const farNextIndex = state.selectedIndex + 2;
+    if (farNextIndex < state.screenshots.length && state.screenshots.length > 2) {
+        sidePreviewFarRight.classList.remove('hidden');
+        sidePreviewFarRight.style.left = `calc(50% + ${farSideOffset}px)`;
+        renderScreenshotToCanvas(farNextIndex, canvasFarRight, ctxFarRight, dims, previewScale);
+    } else {
+        sidePreviewFarRight.classList.add('hidden');
+    }
+}
+
+function slideToScreenshot(newIndex, direction) {
+    isSliding = true;
+    previewStrip.classList.add('sliding');
+
+    const dims = getCanvasDimensions();
+    const maxPreviewWidth = 400;
+    const maxPreviewHeight = 700;
+    const previewScale = Math.min(maxPreviewWidth / dims.width, maxPreviewHeight / dims.height);
+    const slideDistance = dims.width * previewScale + 10; // canvas width + gap
+
+    // Slide the strip in the opposite direction of the click
+    if (direction === 'right') {
+        previewStrip.style.transform = `translateX(-${slideDistance}px)`;
+    } else {
+        previewStrip.style.transform = `translateX(${slideDistance}px)`;
+    }
+
+    // After animation completes, update state and reset
+    setTimeout(() => {
+        // Disable transition temporarily for instant reset
+        previewStrip.style.transition = 'none';
+        previewStrip.style.transform = 'translateX(0)';
+
+        // Update state
+        state.selectedIndex = newIndex;
+        updateScreenshotList();
+        syncUIWithState();
+        updateGradientStopsUI();
+        updateCanvas();
+
+        // Re-enable transition after a frame
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                previewStrip.style.transition = '';
+                previewStrip.classList.remove('sliding');
+                isSliding = false;
+            });
+        });
+    }, 300); // Match CSS transition duration
+}
+
+function renderScreenshotToCanvas(index, targetCanvas, targetCtx, dims, previewScale) {
+    const screenshot = state.screenshots[index];
+    if (!screenshot || !screenshot.image) return;
+
+    // Set canvas size (this also clears the canvas)
+    targetCanvas.width = dims.width;
+    targetCanvas.height = dims.height;
+    targetCanvas.style.width = (dims.width * previewScale) + 'px';
+    targetCanvas.style.height = (dims.height * previewScale) + 'px';
+
+    // Clear canvas explicitly
+    targetCtx.clearRect(0, 0, dims.width, dims.height);
+
+    // Draw background for this screenshot
+    const bg = screenshot.background;
+    drawBackgroundToContext(targetCtx, dims, bg);
+
+    // Draw noise if enabled
+    if (bg.noise) {
+        drawNoiseToContext(targetCtx, dims, bg.noiseIntensity);
+    }
+
+    // Draw screenshot - 3D if active for this screenshot, otherwise 2D
+    const settings = screenshot.screenshot;
+    const use3D = settings.use3D || false;
+
+    if (use3D && typeof renderThreeJSForScreenshot === 'function' && phoneModelLoaded) {
+        // Render 3D phone model for this specific screenshot
+        renderThreeJSForScreenshot(targetCanvas, dims.width, dims.height, index);
+    } else {
+        // Draw 2D screenshot
+        drawScreenshotToContext(targetCtx, dims, screenshot.image, settings);
+    }
+
+    // Draw text
+    const txt = screenshot.text;
+    drawTextToContext(targetCtx, dims, txt);
+}
+
+function drawBackgroundToContext(context, dims, bg) {
+    if (bg.type === 'gradient') {
+        const angle = bg.gradient.angle * Math.PI / 180;
+        const x1 = dims.width / 2 - Math.cos(angle) * dims.width;
+        const y1 = dims.height / 2 - Math.sin(angle) * dims.height;
+        const x2 = dims.width / 2 + Math.cos(angle) * dims.width;
+        const y2 = dims.height / 2 + Math.sin(angle) * dims.height;
+
+        const gradient = context.createLinearGradient(x1, y1, x2, y2);
+        bg.gradient.stops.forEach(stop => {
+            gradient.addColorStop(stop.position / 100, stop.color);
+        });
+
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, dims.width, dims.height);
+    } else if (bg.type === 'solid') {
+        context.fillStyle = bg.solid;
+        context.fillRect(0, 0, dims.width, dims.height);
+    } else if (bg.type === 'image' && bg.image) {
+        const img = bg.image;
+        let sx = 0, sy = 0, sw = img.width, sh = img.height;
+        let dx = 0, dy = 0, dw = dims.width, dh = dims.height;
+
+        if (bg.imageFit === 'cover') {
+            const imgRatio = img.width / img.height;
+            const canvasRatio = dims.width / dims.height;
+
+            if (imgRatio > canvasRatio) {
+                sw = img.height * canvasRatio;
+                sx = (img.width - sw) / 2;
+            } else {
+                sh = img.width / canvasRatio;
+                sy = (img.height - sh) / 2;
+            }
+        } else if (bg.imageFit === 'contain') {
+            const imgRatio = img.width / img.height;
+            const canvasRatio = dims.width / dims.height;
+
+            if (imgRatio > canvasRatio) {
+                dh = dims.width / imgRatio;
+                dy = (dims.height - dh) / 2;
+            } else {
+                dw = dims.height * imgRatio;
+                dx = (dims.width - dw) / 2;
+            }
+
+            context.fillStyle = '#000';
+            context.fillRect(0, 0, dims.width, dims.height);
+        }
+
+        if (bg.imageBlur > 0) {
+            context.filter = `blur(${bg.imageBlur}px)`;
+        }
+
+        context.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+        context.filter = 'none';
+
+        if (bg.overlayOpacity > 0) {
+            context.fillStyle = bg.overlayColor;
+            context.globalAlpha = bg.overlayOpacity / 100;
+            context.fillRect(0, 0, dims.width, dims.height);
+            context.globalAlpha = 1;
+        }
+    }
+}
+
+function drawNoiseToContext(context, dims, intensity) {
+    const imageData = context.getImageData(0, 0, dims.width, dims.height);
+    const data = imageData.data;
+    const noiseAmount = intensity / 100;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const noise = (Math.random() - 0.5) * 255 * noiseAmount;
+        data[i] = Math.max(0, Math.min(255, data[i] + noise));
+        data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+        data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+    }
+
+    context.putImageData(imageData, 0, 0);
+}
+
+function drawScreenshotToContext(context, dims, img, settings) {
+    if (!img) return;
+
+    const scale = settings.scale / 100;
+    let imgWidth = dims.width * scale;
+    let imgHeight = (img.height / img.width) * imgWidth;
+
+    if (imgHeight > dims.height * scale) {
+        imgHeight = dims.height * scale;
+        imgWidth = (img.width / img.height) * imgHeight;
+    }
+
+    const x = (dims.width - imgWidth) * (settings.x / 100);
+    const y = (dims.height - imgHeight) * (settings.y / 100);
+    const centerX = x + imgWidth / 2;
+    const centerY = y + imgHeight / 2;
+
+    context.save();
+    context.translate(centerX, centerY);
+
+    if (settings.rotation) {
+        context.rotate(settings.rotation * Math.PI / 180);
+    }
+
+    // Shadow
+    if (settings.shadow && settings.shadow.enabled) {
+        const shadowOpacity = settings.shadow.opacity / 100;
+        context.shadowColor = settings.shadow.color + Math.round(shadowOpacity * 255).toString(16).padStart(2, '0');
+        context.shadowBlur = settings.shadow.blur;
+        context.shadowOffsetX = settings.shadow.x;
+        context.shadowOffsetY = settings.shadow.y;
+    }
+
+    // Draw rounded rectangle
+    const cornerRadius = settings.cornerRadius || 0;
+    context.beginPath();
+    context.roundRect(-imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight, cornerRadius);
+    context.closePath();
+    context.clip();
+
+    context.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    context.restore();
+}
+
+function drawTextToContext(context, dims, txt) {
+    const currentHeadline = txt.headlines ? (txt.headlines[txt.currentHeadlineLang || 'en'] || '') : '';
+    const currentSubheadline = txt.subheadlines ? (txt.subheadlines[txt.currentSubheadlineLang || 'en'] || '') : '';
+
+    if (!currentHeadline && !currentSubheadline) return;
+
+    const scaleFactor = dims.width / 1290;
+    const headlineSize = (txt.headlineSize || 100) * scaleFactor;
+    const subheadlineSize = (txt.subheadlineSize || 50) * scaleFactor;
+    const offsetY = (txt.offsetY || 12) / 100 * dims.height;
+    const lineHeight = (txt.lineHeight || 110) / 100;
+
+    // Calculate text position
+    let textY;
+    if (txt.position === 'top') {
+        textY = offsetY + headlineSize;
+    } else {
+        textY = dims.height - offsetY - subheadlineSize * 1.5;
+    }
+
+    const textX = dims.width / 2;
+
+    // Draw headline
+    if (currentHeadline) {
+        const fontStyle = txt.headlineItalic ? 'italic ' : '';
+        context.font = `${fontStyle}${txt.headlineWeight || '600'} ${headlineSize}px ${txt.headlineFont || 'system-ui'}`;
+        context.fillStyle = txt.headlineColor || '#ffffff';
+        context.textAlign = 'center';
+        context.textBaseline = 'top';
+
+        const lines = currentHeadline.split('\n');
+        lines.forEach((line, i) => {
+            const lineY = textY + i * headlineSize * lineHeight;
+            context.fillText(line, textX, lineY);
+
+            if (txt.headlineUnderline) {
+                const metrics = context.measureText(line);
+                const underlineY = lineY + headlineSize * 0.9;
+                context.fillRect(textX - metrics.width / 2, underlineY, metrics.width, headlineSize * 0.05);
+            }
+
+            if (txt.headlineStrikethrough) {
+                const metrics = context.measureText(line);
+                const strikeY = lineY + headlineSize * 0.45;
+                context.fillRect(textX - metrics.width / 2, strikeY, metrics.width, headlineSize * 0.05);
+            }
+        });
+
+        textY += lines.length * headlineSize * lineHeight + headlineSize * 0.3;
+    }
+
+    // Draw subheadline
+    if (currentSubheadline) {
+        const fontStyle = txt.subheadlineItalic ? 'italic ' : '';
+        context.font = `${fontStyle}${txt.subheadlineWeight || '400'} ${subheadlineSize}px ${txt.subheadlineFont || 'system-ui'}`;
+        context.fillStyle = txt.subheadlineColor || '#ffffff';
+        context.globalAlpha = (txt.subheadlineOpacity || 70) / 100;
+        context.textAlign = 'center';
+        context.textBaseline = 'top';
+
+        const lines = currentSubheadline.split('\n');
+        lines.forEach((line, i) => {
+            const lineY = textY + i * subheadlineSize * lineHeight;
+            context.fillText(line, textX, lineY);
+        });
+
+        context.globalAlpha = 1;
+    }
 }
 
 function drawBackground() {

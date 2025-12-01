@@ -380,6 +380,90 @@ function renderThreeJSToCanvas(targetCanvas, width, height) {
     phoneModel.scale.copy(originalScale);
 }
 
+// Render 3D for a specific screenshot index (used for side previews)
+function renderThreeJSForScreenshot(targetCanvas, width, height, screenshotIndex) {
+    if (!threeRenderer || !threeScene || !threeCamera || !phoneModel) return;
+    if (typeof state === 'undefined' || !state.screenshots[screenshotIndex]) return;
+
+    const screenshot = state.screenshots[screenshotIndex];
+    const ss = screenshot.screenshot;
+    const dims = { width: width || 1290, height: height || 2796 };
+
+    // Store original values
+    const originalBackground = threeScene.background;
+    const originalPosition = phoneModel.position.clone();
+    const originalScale = phoneModel.scale.clone();
+    const originalRotation = phoneModel.rotation.clone();
+
+    // Temporarily update screen texture for this screenshot
+    const oldMaterial = customScreenPlane ? customScreenPlane.material : null;
+    if (screenshot.image && customScreenPlane) {
+        const cornerRadius = Math.round(screenshot.image.width * 0.15);
+        const roundedImage = createRoundedScreenImage(screenshot.image, cornerRadius);
+        const newTexture = new THREE.Texture(roundedImage);
+        newTexture.needsUpdate = true;
+        newTexture.colorSpace = THREE.SRGBColorSpace;
+        newTexture.flipY = true;
+
+        const newMaterial = new THREE.MeshBasicMaterial({
+            map: newTexture,
+            side: THREE.FrontSide,
+            transparent: true
+        });
+        customScreenPlane.material = newMaterial;
+    }
+
+    // Apply rotation for this screenshot
+    const rotation3D = ss.rotation3D || { x: 0, y: 0, z: 0 };
+    phoneModel.rotation.set(
+        rotation3D.x * Math.PI / 180,
+        rotation3D.y * Math.PI / 180,
+        rotation3D.z * Math.PI / 180
+    );
+
+    // Apply scale and position
+    const screenshotScale = ss.scale / 100;
+    phoneModel.scale.setScalar(baseModelScale * screenshotScale);
+    const xOffset = ((ss.x - 50) / 50) * 2;
+    const yOffset = -((ss.y - 50) / 50) * 3;
+    phoneModel.position.set(xOffset, yOffset, 0);
+
+    // Set transparent background for compositing
+    threeScene.background = null;
+
+    // Temporarily resize renderer
+    const oldSize = { width: 400, height: 700 };
+    threeRenderer.setSize(dims.width, dims.height);
+    threeCamera.aspect = dims.width / dims.height;
+    threeCamera.updateProjectionMatrix();
+
+    // Render with transparency
+    threeRenderer.render(threeScene, threeCamera);
+
+    // Draw to target canvas
+    const ctx = targetCanvas.getContext('2d');
+    ctx.drawImage(threeRenderer.domElement, 0, 0, dims.width, dims.height);
+
+    // Restore everything
+    threeRenderer.setSize(oldSize.width, oldSize.height);
+    threeCamera.aspect = oldSize.width / oldSize.height;
+    threeCamera.updateProjectionMatrix();
+    threeScene.background = originalBackground;
+    phoneModel.position.copy(originalPosition);
+    phoneModel.scale.copy(originalScale);
+    phoneModel.rotation.copy(originalRotation);
+
+    // Restore original material
+    if (oldMaterial && customScreenPlane) {
+        // Dispose the temporary material
+        if (customScreenPlane.material !== oldMaterial) {
+            customScreenPlane.material.map?.dispose();
+            customScreenPlane.material.dispose();
+        }
+        customScreenPlane.material = oldMaterial;
+    }
+}
+
 // Show/hide Three.js container
 function showThreeJS(show) {
     const container = document.getElementById('threejs-container');
