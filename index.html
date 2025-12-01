@@ -866,26 +866,99 @@
             <div class="settings-section">
                 <h4 class="settings-section-title">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    AI Translation Provider
+                </h4>
+                <p class="settings-description">Choose which AI provider to use for translations. API keys are stored locally in your browser.</p>
+                <div class="settings-provider-selector">
+                    <label class="settings-provider-option">
+                        <input type="radio" name="ai-provider" value="anthropic" checked>
+                        <span class="provider-label">Anthropic (Claude)</span>
+                    </label>
+                    <label class="settings-provider-option">
+                        <input type="radio" name="ai-provider" value="openai">
+                        <span class="provider-label">OpenAI (GPT)</span>
+                    </label>
+                    <label class="settings-provider-option">
+                        <input type="radio" name="ai-provider" value="google">
+                        <span class="provider-label">Google (Gemini)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section settings-api-section" id="settings-anthropic" data-provider="anthropic">
+                <h4 class="settings-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
                     </svg>
                     Claude API Key
                 </h4>
-                <p class="settings-description">Required for AI-powered translations when using this app outside of Claude.ai. Your API key is stored locally in your browser and never sent to any server except Anthropic's API.</p>
                 <div class="settings-input-group">
-                    <input type="password" id="settings-api-key" placeholder="sk-ant-api03-..." />
-                    <button class="settings-show-key" id="settings-show-key" title="Show/hide key">
+                    <input type="password" id="settings-api-key-anthropic" placeholder="sk-ant-api03-..." />
+                    <button class="settings-show-key" data-target="settings-api-key-anthropic" title="Show/hide key">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                         </svg>
                     </button>
                 </div>
-                <div class="settings-key-status" id="settings-key-status"></div>
+                <div class="settings-key-status" id="settings-key-status-anthropic"></div>
                 <a href="https://console.anthropic.com/settings/keys" target="_blank" class="settings-link">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
                     </svg>
                     Get your API key from Anthropic Console
+                </a>
+            </div>
+
+            <div class="settings-section settings-api-section" id="settings-openai" data-provider="openai" style="display: none;">
+                <h4 class="settings-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                    </svg>
+                    OpenAI API Key
+                </h4>
+                <div class="settings-input-group">
+                    <input type="password" id="settings-api-key-openai" placeholder="sk-..." />
+                    <button class="settings-show-key" data-target="settings-api-key-openai" title="Show/hide key">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="settings-key-status" id="settings-key-status-openai"></div>
+                <a href="https://platform.openai.com/api-keys" target="_blank" class="settings-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+                    </svg>
+                    Get your API key from OpenAI Platform
+                </a>
+            </div>
+
+            <div class="settings-section settings-api-section" id="settings-google" data-provider="google" style="display: none;">
+                <h4 class="settings-section-title">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                    </svg>
+                    Google AI API Key
+                </h4>
+                <div class="settings-input-group">
+                    <input type="password" id="settings-api-key-google" placeholder="AIza..." />
+                    <button class="settings-show-key" data-target="settings-api-key-google" title="Show/hide key">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="settings-key-status" id="settings-key-status-google"></div>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="settings-link">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+                    </svg>
+                    Get your API key from Google AI Studio
                 </a>
             </div>
 

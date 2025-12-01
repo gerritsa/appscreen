@@ -844,6 +844,47 @@ input[type="range"]::-webkit-slider-thumb {
     margin: 0 0 16px 0;
 }
 
+.settings-provider-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.settings-provider-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+    min-width: 140px;
+}
+
+.settings-provider-option:hover {
+    border-color: var(--accent);
+}
+
+.settings-provider-option input[type="radio"] {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+.settings-provider-option input[type="radio"]:checked + .provider-label {
+    color: var(--accent);
+}
+
+.provider-label {
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
 .settings-input-group {
     display: flex;
     gap: 8px;

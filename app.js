@@ -167,16 +167,24 @@ async function loadGoogleFont(fontName) {
         const link = document.createElement('link');
         link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@300;400;500;600;700;800;900&display=swap`;
         link.rel = 'stylesheet';
-        document.head.appendChild(link);
 
-        // Wait for the font to actually load with the headline weight
+        // Wait for stylesheet to load first
+        await new Promise((resolve, reject) => {
+            link.onload = resolve;
+            link.onerror = reject;
+            document.head.appendChild(link);
+        });
+
+        // Wait for the font to actually load with the required weights
         const text = getTextSettings();
-        const weight = text.headlineWeight || '600';
+        const headlineWeight = text.headlineWeight || '600';
+        const subheadlineWeight = text.subheadlineWeight || '400';
 
-        // Try to load both 400 (for subheadline) and the headline weight
+        // Load all weights we might need
         await Promise.all([
             document.fonts.load(`400 16px "${fontName}"`),
-            document.fonts.load(`${weight} 16px "${fontName}"`)
+            document.fonts.load(`${headlineWeight} 16px "${fontName}"`),
+            document.fonts.load(`${subheadlineWeight} 16px "${fontName}"`)
         ]);
 
         googleFonts.loaded.add(fontName);
@@ -1430,9 +1438,22 @@ function setupEventListeners() {
         saveSettings();
     });
 
-    document.getElementById('settings-show-key').addEventListener('click', () => {
-        const input = document.getElementById('settings-api-key');
-        input.type = input.type === 'password' ? 'text' : 'password';
+    // Provider radio buttons
+    document.querySelectorAll('input[name="ai-provider"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            updateProviderSection(e.target.value);
+        });
+    });
+
+    // Show/hide key buttons for all providers
+    document.querySelectorAll('.settings-show-key').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (input) {
+                input.type = input.type === 'password' ? 'text' : 'password';
+            }
+        });
     });
 
     document.getElementById('settings-modal').addEventListener('click', (e) => {
@@ -2190,23 +2211,30 @@ async function aiTranslateAll() {
     const texts = isHeadline ? text.headlines : text.subheadlines;
     const languages = isHeadline ? text.headlineLanguages : text.subheadlineLanguages;
     const sourceText = texts[sourceLang] || '';
-    
+
     if (!sourceText.trim()) {
         setTranslateStatus('Please enter text in the source language first', 'error');
         return;
     }
-    
+
     // Get target languages (all except source)
     const targetLangs = languages.filter(lang => lang !== sourceLang);
-    
+
     if (targetLangs.length === 0) {
         setTranslateStatus('Add more languages to translate to', 'error');
         return;
     }
 
-    // Check for API key
-    const apiKey = localStorage.getItem('claudeApiKey');
-    
+    // Get selected provider and API key
+    const provider = getSelectedProvider();
+    const providerConfig = aiProviders[provider];
+    const apiKey = localStorage.getItem(providerConfig.storageKey);
+
+    if (!apiKey) {
+        setTranslateStatus(`Add your ${providerConfig.name} API key in Settings to use AI translation.`, 'error');
+        return;
+    }
+
     const btn = document.getElementById('ai-translate-btn');
     btn.disabled = true;
     btn.classList.add('loading');
@@ -2216,19 +2244,19 @@ async function aiTranslateAll() {
         </svg>
         <span>Translating...</span>
     `;
-    
-    setTranslateStatus(`Translating to ${targetLangs.length} language(s)...`, '');
-    
+
+    setTranslateStatus(`Translating to ${targetLangs.length} language(s) with ${providerConfig.name}...`, '');
+
     // Mark all target items as translating
     targetLangs.forEach(lang => {
         const item = document.querySelector(`.translate-target-item[data-lang="${lang}"]`);
         if (item) item.classList.add('translating');
     });
-    
+
     try {
         // Build the translation prompt
         const targetLangNames = targetLangs.map(lang => `${languageNames[lang]} (${lang})`).join(', ');
-        
+
         const prompt = `You are a professional translator for App Store screenshot marketing copy. Translate the following text from ${languageNames[sourceLang]} to these languages: ${targetLangNames}.
 
 The text is a short marketing headline/tagline for an app, so keep translations:
@@ -2246,45 +2274,21 @@ Example format:
 
 Translate to these language codes: ${targetLangs.join(', ')}`;
 
-        // Build headers - include API key if available
-        const headers = {
-            "Content-Type": "application/json",
-        };
-        
-        if (apiKey) {
-            headers["x-api-key"] = apiKey;
-            headers["anthropic-version"] = "2023-06-01";
-            headers["anthropic-dangerous-direct-browser-access"] = "true";
+        let responseText;
+
+        if (provider === 'anthropic') {
+            responseText = await translateWithAnthropic(apiKey, prompt);
+        } else if (provider === 'openai') {
+            responseText = await translateWithOpenAI(apiKey, prompt);
+        } else if (provider === 'google') {
+            responseText = await translateWithGoogle(apiKey, prompt);
         }
 
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: headers,
-            body: JSON.stringify({
-                model: "claude-sonnet-4-20250514",
-                max_tokens: 1000,
-                messages: [
-                    { role: "user", content: prompt }
-                ]
-            })
-        });
-
-        if (!response.ok) {
-            const status = response.status;
-            if (status === 0 || status === 403 || status === 401) {
-                throw new Error('AI_UNAVAILABLE');
-            }
-            throw new Error(`API request failed: ${status}`);
-        }
-
-        const data = await response.json();
-        let responseText = data.content[0].text;
-        
         // Clean up response - remove markdown code blocks if present
         responseText = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        
+
         const translations = JSON.parse(responseText);
-        
+
         // Apply translations to the textareas
         let translatedCount = 0;
         targetLangs.forEach(lang => {
@@ -2297,22 +2301,15 @@ Translate to these language codes: ${targetLangs.join(', ')}`;
                 }
             }
         });
-        
+
         setTranslateStatus(`✓ Translated to ${translatedCount} language(s)`, 'success');
-        
+
     } catch (error) {
         console.error('Translation error:', error);
-        const apiKey = localStorage.getItem('claudeApiKey');
-        
+
         if (error.message === 'Failed to fetch') {
-            if (apiKey) {
-                setTranslateStatus('Connection failed. Check your API key in Settings.', 'error');
-            } else {
-                setTranslateStatus('Add your Claude API key in Settings (gear icon) to use AI translation.', 'error');
-            }
-        } else if (error.message === 'AI_UNAVAILABLE') {
-            setTranslateStatus('Add your Claude API key in Settings to use AI translation.', 'error');
-        } else if (error.message.includes('401')) {
+            setTranslateStatus('Connection failed. Check your API key in Settings.', 'error');
+        } else if (error.message === 'AI_UNAVAILABLE' || error.message.includes('401') || error.message.includes('403')) {
             setTranslateStatus('Invalid API key. Update it in Settings (gear icon).', 'error');
         } else {
             setTranslateStatus('Translation failed: ' + error.message, 'error');
@@ -2326,12 +2323,84 @@ Translate to these language codes: ${targetLangs.join(', ')}`;
             </svg>
             <span>Auto-translate with AI</span>
         `;
-        
+
         // Remove translating state
         document.querySelectorAll('.translate-target-item').forEach(item => {
             item.classList.remove('translating');
         });
     }
+}
+
+// Provider-specific translation functions
+async function translateWithAnthropic(apiKey, prompt) {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1000,
+            messages: [{ role: "user", content: prompt }]
+        })
+    });
+
+    if (!response.ok) {
+        const status = response.status;
+        if (status === 401 || status === 403) throw new Error('AI_UNAVAILABLE');
+        throw new Error(`API request failed: ${status}`);
+    }
+
+    const data = await response.json();
+    return data.content[0].text;
+}
+
+async function translateWithOpenAI(apiKey, prompt) {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: "gpt-4o-mini",
+            max_tokens: 1000,
+            messages: [{ role: "user", content: prompt }]
+        })
+    });
+
+    if (!response.ok) {
+        const status = response.status;
+        if (status === 401 || status === 403) throw new Error('AI_UNAVAILABLE');
+        throw new Error(`API request failed: ${status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+async function translateWithGoogle(apiKey, prompt) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+        })
+    });
+
+    if (!response.ok) {
+        const status = response.status;
+        if (status === 401 || status === 403 || status === 400) throw new Error('AI_UNAVAILABLE');
+        throw new Error(`API request failed: ${status}`);
+    }
+
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
 }
 
 function setTranslateStatus(message, type) {
@@ -2341,46 +2410,101 @@ function setTranslateStatus(message, type) {
 }
 
 // Settings modal functions
-function openSettingsModal() {
-    const savedKey = localStorage.getItem('claudeApiKey');
-    const input = document.getElementById('settings-api-key');
-    input.value = savedKey || '';
-    input.type = 'password';
-    
-    const status = document.getElementById('settings-key-status');
-    if (savedKey) {
-        status.textContent = '✓ API key is saved';
-        status.className = 'settings-key-status success';
-    } else {
-        status.textContent = '';
-        status.className = 'settings-key-status';
+const aiProviders = {
+    anthropic: {
+        name: 'Anthropic (Claude)',
+        keyPrefix: 'sk-ant-',
+        storageKey: 'claudeApiKey'
+    },
+    openai: {
+        name: 'OpenAI (GPT)',
+        keyPrefix: 'sk-',
+        storageKey: 'openaiApiKey'
+    },
+    google: {
+        name: 'Google (Gemini)',
+        keyPrefix: 'AIza',
+        storageKey: 'googleApiKey'
     }
-    
+};
+
+function getSelectedProvider() {
+    return localStorage.getItem('aiProvider') || 'anthropic';
+}
+
+function openSettingsModal() {
+    // Load saved provider
+    const savedProvider = getSelectedProvider();
+    document.querySelectorAll('input[name="ai-provider"]').forEach(radio => {
+        radio.checked = radio.value === savedProvider;
+    });
+
+    // Show the correct API section
+    updateProviderSection(savedProvider);
+
+    // Load all saved API keys
+    Object.entries(aiProviders).forEach(([provider, config]) => {
+        const savedKey = localStorage.getItem(config.storageKey);
+        const input = document.getElementById(`settings-api-key-${provider}`);
+        if (input) {
+            input.value = savedKey || '';
+            input.type = 'password';
+        }
+
+        const status = document.getElementById(`settings-key-status-${provider}`);
+        if (status) {
+            if (savedKey) {
+                status.textContent = '✓ API key is saved';
+                status.className = 'settings-key-status success';
+            } else {
+                status.textContent = '';
+                status.className = 'settings-key-status';
+            }
+        }
+    });
+
     document.getElementById('settings-modal').classList.add('visible');
 }
 
+function updateProviderSection(provider) {
+    document.querySelectorAll('.settings-api-section').forEach(section => {
+        section.style.display = section.dataset.provider === provider ? 'block' : 'none';
+    });
+}
+
 function saveSettings() {
-    const key = document.getElementById('settings-api-key').value.trim();
-    const status = document.getElementById('settings-key-status');
-    
-    if (key) {
-        if (key.startsWith('sk-ant-')) {
-            localStorage.setItem('claudeApiKey', key);
-            status.textContent = '✓ API key saved';
-            status.className = 'settings-key-status success';
-            
-            setTimeout(() => {
-                document.getElementById('settings-modal').classList.remove('visible');
-            }, 500);
+    // Save selected provider
+    const selectedProvider = document.querySelector('input[name="ai-provider"]:checked').value;
+    localStorage.setItem('aiProvider', selectedProvider);
+
+    // Save all API keys
+    let allValid = true;
+    Object.entries(aiProviders).forEach(([provider, config]) => {
+        const input = document.getElementById(`settings-api-key-${provider}`);
+        const status = document.getElementById(`settings-key-status-${provider}`);
+        if (!input || !status) return;
+
+        const key = input.value.trim();
+
+        if (key) {
+            // Validate key format
+            if (key.startsWith(config.keyPrefix)) {
+                localStorage.setItem(config.storageKey, key);
+                status.textContent = '✓ API key saved';
+                status.className = 'settings-key-status success';
+            } else {
+                status.textContent = `Invalid format. Should start with ${config.keyPrefix}...`;
+                status.className = 'settings-key-status error';
+                if (provider === selectedProvider) allValid = false;
+            }
         } else {
-            status.textContent = 'Invalid key format. Should start with sk-ant-';
-            status.className = 'settings-key-status error';
+            localStorage.removeItem(config.storageKey);
+            status.textContent = '';
+            status.className = 'settings-key-status';
         }
-    } else {
-        localStorage.removeItem('claudeApiKey');
-        status.textContent = 'API key removed';
-        status.className = 'settings-key-status';
-        
+    });
+
+    if (allValid) {
         setTimeout(() => {
             document.getElementById('settings-modal').classList.remove('visible');
         }, 500);
