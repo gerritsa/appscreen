@@ -5355,25 +5355,35 @@ function roundRect(ctx, x, y, width, height, radius) {
 }
 
 function wrapText(ctx, text, maxWidth) {
-    const words = text.split(' ');
     const lines = [];
-    let currentLine = '';
+    const rawLines = String(text).split(/\r?\n/);
 
-    words.forEach(word => {
-        const testLine = currentLine + (currentLine ? ' ' : '') + word;
-        const metrics = ctx.measureText(testLine);
-
-        if (metrics.width > maxWidth && currentLine) {
-            lines.push(currentLine);
-            currentLine = word;
-        } else {
-            currentLine = testLine;
+    rawLines.forEach((rawLine) => {
+        if (rawLine === '') {
+            lines.push('');
+            return;
         }
-    });
 
-    if (currentLine) {
-        lines.push(currentLine);
-    }
+        const words = rawLine.split(' ');
+        let currentLine = '';
+
+        words.forEach(word => {
+            const testLine = currentLine + (currentLine ? ' ' : '') + word;
+            const metrics = ctx.measureText(testLine);
+
+            if (metrics.width > maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        });
+
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+
+    });
 
     return lines;
 }
