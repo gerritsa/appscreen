@@ -5502,7 +5502,7 @@ async function exportAllForLanguage(lang) {
     hideExportProgress();
 
     const link = document.createElement('a');
-    link.download = `screenshots-${lang}.zip`;
+    link.download = `screenshots_${state.outputDevice}_${lang}.zip`;
     link.href = URL.createObjectURL(content);
     link.click();
     URL.revokeObjectURL(link.href);
@@ -5576,7 +5576,7 @@ async function exportAllLanguages() {
     hideExportProgress();
 
     const link = document.createElement('a');
-    link.download = 'screenshots-all-languages.zip';
+    link.download = `screenshots_${state.outputDevice}_all-languages.zip`;
     link.href = URL.createObjectURL(content);
     link.click();
     URL.revokeObjectURL(link.href);
