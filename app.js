@@ -1214,6 +1214,7 @@ function loadState() {
                 } else {
                     // New project, reset to defaults
                     resetStateToDefaults();
+                    updateScreenshotList();
                 }
                 resolve();
             };
