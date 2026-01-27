@@ -9,6 +9,8 @@ A free, open-source tool for creating beautiful App Store screenshots with custo
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> 🍋 **Built by [YuzuHub](https://yuzuhub.com)** — We build smart AI products in Düsseldorf, Germany. Check out [yuzu.chat](https://yuzu.chat), [Eno](https://eno.yuzuhub.com), [VoltPlan](https://voltplan.app) and more.
+
 ## Features
 
 ### Output & Export
@@ -115,6 +117,17 @@ docker compose -f docker-compose.build.yml up -d
 6. **Add Text**: Enter your headline and optional subheadline
 7. **Export**: Download the current screenshot or export all at once as ZIP
 
+## Apps Using This Project
+
+Built something with this tool? Add your app to the list by submitting a pull request!
+
+| App | Description | Link |
+|-----|-------------|------|
+| Cable | Manage your 12V systems like Boats and RVs | [cable.yuzuhub.com](https://cable.yuzuhub.com) |
+| Eno | Wine pairings and food pairings made easy | [eno.yuzuhub.com](https://eno.yuzuhub.com) |
+| TravelRates Currency Converter* | Exchange Rates for Travelers | [apple.com](https://apps.apple.com/sg/app/travelrates-currency-converter/id6756080378) |
+| *Your app here* | *Submit a PR to add your app* | *Your app link* |
+
 ## AI Translation
 
 To use the AI-powered translation feature:
@@ -138,17 +151,6 @@ Your API key is stored locally in your browser and only sent to the respective A
 - Claude/OpenAI/Google APIs for translations
 - Docker + nginx for containerized deployment
 
-## Apps Using This Project
-
-Built something with this tool? Add your app to the list by submitting a pull request!
-
-| App | Description | Link |
-|-----|-------------|------|
-| Cable | Manage your 12V systems like Boats and RVs | [cable.yuzuhub.com](https://cable.yuzuhub.com) |
-| Eno | Wine pairings and food pairings made easy | [eno.yuzuhub.com](https://eno.yuzuhub.com) |
-| TravelRates Currency Converter* | Exchange Rates for Travelers | [apple.com](https://apps.apple.com/sg/app/travelrates-currency-converter/id6756080378) |
-| *Your app here* | *Submit a PR to add your app* | *Your app link* |
-
 ## License
 
 MIT License - feel free to use, modify, and distribute.
@@ -160,4 +162,4 @@ MIT License - feel free to use, modify, and distribute.
 
 ## Author
 
-Proudly vibe coded by [Stefan from yuzuhub.com](https://yuzuhub.com/en)
+Proudly vibe coded by [Stefan](https://github.com/BlackMac) at [YuzuHub](https://yuzuhub.com/en) — building smart AI products from Düsseldorf, Germany.
