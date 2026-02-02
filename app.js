@@ -165,7 +165,8 @@ const languageFlags = {
     'it': '🇮🇹', 'pt': '🇵🇹', 'pt-br': '🇧🇷', 'nl': '🇳🇱', 'ru': '🇷🇺',
     'ja': '🇯🇵', 'ko': '🇰🇷', 'zh': '🇨🇳', 'zh-tw': '🇹🇼', 'ar': '🇸🇦',
     'hi': '🇮🇳', 'tr': '🇹🇷', 'pl': '🇵🇱', 'sv': '🇸🇪', 'da': '🇩🇰',
-    'no': '🇳🇴', 'fi': '🇫🇮', 'th': '🇹🇭', 'vi': '🇻🇳', 'id': '🇮🇩'
+    'no': '🇳🇴', 'fi': '🇫🇮', 'th': '🇹🇭', 'vi': '🇻🇳', 'id': '🇮🇩',
+    'uk': '🇺🇦'
 };
 
 // Google Fonts configuration
@@ -642,7 +643,7 @@ async function renderFontList(pickerId, ids) {
                  data-font-category="${font.category}">
                 <span class="font-option-name" style="font-family: ${isLoaded ? font.value : 'inherit'}">${font.name}</span>
                 ${isLoading ? '<span class="font-option-loading">Loading...</span>' :
-                  `<span class="font-option-category">${font.category}</span>`}
+                `<span class="font-option-category">${font.category}</span>`}
             </div>
         `;
     }).join('');
@@ -830,37 +831,37 @@ function openDatabase() {
     return new Promise((resolve, reject) => {
         try {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
-            
+
             request.onerror = (event) => {
                 console.error('IndexedDB error:', event.target.error);
                 // Continue without database
                 resolve(null);
             };
-            
+
             request.onsuccess = () => {
                 db = request.result;
                 resolve(db);
             };
-            
+
             request.onupgradeneeded = (event) => {
                 const database = event.target.result;
-                
+
                 // Delete old store if exists (from version 1)
                 if (database.objectStoreNames.contains('state')) {
                     database.deleteObjectStore('state');
                 }
-                
+
                 // Create projects store
                 if (!database.objectStoreNames.contains(PROJECTS_STORE)) {
                     database.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
                 }
-                
+
                 // Create meta store for project list and current project
                 if (!database.objectStoreNames.contains(META_STORE)) {
                     database.createObjectStore(META_STORE, { keyPath: 'key' });
                 }
             };
-            
+
             request.onblocked = () => {
                 console.warn('Database upgrade blocked. Please close other tabs.');
                 resolve(null);
@@ -875,15 +876,15 @@ function openDatabase() {
 // Load project list and current project
 async function loadProjectsMeta() {
     if (!db) return;
-    
+
     return new Promise((resolve) => {
         try {
             const transaction = db.transaction([META_STORE], 'readonly');
             const store = transaction.objectStore(META_STORE);
-            
+
             const projectsReq = store.get('projects');
             const currentReq = store.get('currentProject');
-            
+
             transaction.oncomplete = () => {
                 if (projectsReq.result) {
                     projects = projectsReq.result.value;
@@ -894,7 +895,7 @@ async function loadProjectsMeta() {
                 updateProjectSelector();
                 resolve();
             };
-            
+
             transaction.onerror = () => resolve();
         } catch (e) {
             resolve();
@@ -905,7 +906,7 @@ async function loadProjectsMeta() {
 // Save project list and current project
 function saveProjectsMeta() {
     if (!db) return;
-    
+
     try {
         const transaction = db.transaction([META_STORE], 'readwrite');
         const store = transaction.objectStore(META_STORE);
@@ -1063,13 +1064,13 @@ function migrate3DPosition(screenshotSettings) {
 // Load state from IndexedDB for current project
 function loadState() {
     if (!db) return Promise.resolve();
-    
+
     return new Promise((resolve) => {
         try {
             const transaction = db.transaction([PROJECTS_STORE], 'readonly');
             const store = transaction.objectStore(PROJECTS_STORE);
             const request = store.get(currentProjectId);
-            
+
             request.onsuccess = () => {
                 const parsed = request.result;
                 if (parsed) {
@@ -1249,7 +1250,7 @@ function loadState() {
                 }
                 resolve();
             };
-            
+
             request.onerror = () => {
                 console.error('Error loading state:', request.error);
                 resolve();
@@ -1365,10 +1366,10 @@ function resetStateToDefaults() {
 async function switchProject(projectId) {
     // Save current project first
     saveState();
-    
+
     currentProjectId = projectId;
     saveProjectsMeta();
-    
+
     // Reset and load new project
     resetStateToDefaults();
     await loadState();
@@ -1423,6 +1424,97 @@ async function deleteProject() {
     saveProjectsMeta();
     await switchProject(projects[0].id);
     updateProjectSelector();
+}
+
+async function duplicateProject(sourceProjectId, customName) {
+    if (!db) return;
+
+    const transaction = db.transaction([PROJECTS_STORE], 'readonly');
+    const store = transaction.objectStore(PROJECTS_STORE);
+    const request = store.get(sourceProjectId);
+
+    return new Promise((resolve) => {
+        request.onsuccess = async () => {
+            const projectData = request.result;
+            if (!projectData) {
+                await showAppAlert('Could not read project data', 'error');
+                resolve();
+                return;
+            }
+
+            const newId = 'project_' + Date.now();
+            const sourceProject = projects.find(p => p.id === sourceProjectId);
+            const newName = customName || (sourceProject ? sourceProject.name : 'Project') + ' (Copy)';
+
+            const clonedData = JSON.parse(JSON.stringify(projectData));
+            clonedData.id = newId;
+
+            projects.push({ id: newId, name: newName, screenshotCount: clonedData.screenshots?.length || 0 });
+            saveProjectsMeta();
+
+            const writeTransaction = db.transaction([PROJECTS_STORE], 'readwrite');
+            const writeStore = writeTransaction.objectStore(PROJECTS_STORE);
+            writeStore.put(clonedData);
+
+            writeTransaction.oncomplete = async () => {
+                await switchProject(newId);
+                updateProjectSelector();
+                resolve();
+            };
+        };
+    });
+}
+
+function duplicateScreenshot(index) {
+    const original = state.screenshots[index];
+    if (!original) return;
+
+    const clone = JSON.parse(JSON.stringify({
+        name: original.name,
+        deviceType: original.deviceType,
+        background: original.background,
+        screenshot: original.screenshot,
+        text: original.text,
+        overrides: original.overrides
+    }));
+
+    const nameParts = clone.name.split('.');
+    if (nameParts.length > 1) {
+        const ext = nameParts.pop();
+        clone.name = nameParts.join('.') + ' (Copy).' + ext;
+    } else {
+        clone.name = clone.name + ' (Copy)';
+    }
+
+    clone.localizedImages = {};
+    if (original.localizedImages) {
+        Object.keys(original.localizedImages).forEach(lang => {
+            const langData = original.localizedImages[lang];
+            if (langData?.src) {
+                const img = new Image();
+                img.src = langData.src;
+                clone.localizedImages[lang] = {
+                    image: img,
+                    src: langData.src,
+                    name: langData.name
+                };
+            }
+        });
+    }
+
+    if (original.image?.src) {
+        const img = new Image();
+        img.src = original.image.src;
+        clone.image = img;
+    }
+
+    state.screenshots.splice(index + 1, 0, clone);
+    state.selectedIndex = index + 1;
+
+    updateScreenshotList();
+    syncUIWithState();
+    updateGradientStopsUI();
+    updateCanvas();
 }
 
 // Sync UI controls with current state
@@ -1681,11 +1773,37 @@ function setupEventListeners() {
         document.getElementById('project-name-input').value = '';
         document.getElementById('project-modal-confirm').textContent = 'Create';
         document.getElementById('project-modal').dataset.mode = 'new';
+
+        const duplicateGroup = document.getElementById('duplicate-from-group');
+        const duplicateSelect = document.getElementById('duplicate-from-select');
+        if (projects.length > 0) {
+            duplicateGroup.style.display = 'block';
+            duplicateSelect.innerHTML = '<option value="">None (empty project)</option>';
+            projects.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.name + (p.screenshotCount ? ` (${p.screenshotCount} screenshots)` : '');
+                duplicateSelect.appendChild(option);
+            });
+        } else {
+            duplicateGroup.style.display = 'none';
+        }
+
         document.getElementById('project-modal').classList.add('visible');
         document.getElementById('project-name-input').focus();
     });
 
-    // Save button removed - state is auto-saved
+    document.getElementById('duplicate-from-select').addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+        if (selectedId) {
+            const selectedProject = projects.find(p => p.id === selectedId);
+            if (selectedProject) {
+                document.getElementById('project-name-input').value = selectedProject.name + ' (Copy)';
+            }
+        } else {
+            document.getElementById('project-name-input').value = '';
+        }
+    });
 
     document.getElementById('rename-project-btn').addEventListener('click', () => {
         const project = projects.find(p => p.id === currentProjectId);
@@ -1693,6 +1811,7 @@ function setupEventListeners() {
         document.getElementById('project-name-input').value = project ? project.name : '';
         document.getElementById('project-modal-confirm').textContent = 'Rename';
         document.getElementById('project-modal').dataset.mode = 'rename';
+        document.getElementById('duplicate-from-group').style.display = 'none';
         document.getElementById('project-modal').classList.add('visible');
         document.getElementById('project-name-input').focus();
     });
@@ -1722,7 +1841,12 @@ function setupEventListeners() {
 
         const mode = document.getElementById('project-modal').dataset.mode;
         if (mode === 'new') {
-            createProject(name);
+            const duplicateFromId = document.getElementById('duplicate-from-select').value;
+            if (duplicateFromId) {
+                await duplicateProject(duplicateFromId, name);
+            } else {
+                createProject(name);
+            }
         } else if (mode === 'rename') {
             renameProject(name);
         }
@@ -2035,11 +2159,11 @@ function setupEventListeners() {
             document.querySelectorAll('#bg-type-selector button').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             setBackground('type', btn.dataset.type);
-            
+
             document.getElementById('gradient-options').style.display = btn.dataset.type === 'gradient' ? 'block' : 'none';
             document.getElementById('solid-options').style.display = btn.dataset.type === 'solid' ? 'block' : 'none';
             document.getElementById('image-options').style.display = btn.dataset.type === 'image' ? 'block' : 'none';
-            
+
             updateCanvas();
         });
     });
@@ -2086,12 +2210,12 @@ function setupEventListeners() {
         swatch.addEventListener('click', () => {
             document.querySelectorAll('.preset-swatch').forEach(s => s.classList.remove('selected'));
             swatch.classList.add('selected');
-            
+
             // Parse gradient from preset
             const gradientStr = swatch.dataset.gradient;
             const angleMatch = gradientStr.match(/(\d+)deg/);
             const colorMatches = gradientStr.matchAll(/(#[a-fA-F0-9]{6})\s+(\d+)%/g);
-            
+
             if (angleMatch) {
                 const angle = parseInt(angleMatch[1]);
                 setBackground('gradient.angle', angle);
@@ -2107,7 +2231,7 @@ function setupEventListeners() {
                 setBackground('gradient.stops', stops);
                 updateGradientStopsUI();
             }
-            
+
             updateCanvas();
         });
     });
@@ -2194,7 +2318,7 @@ function setupEventListeners() {
     });
 
     // Noise toggle
-    document.getElementById('noise-toggle').addEventListener('click', function() {
+    document.getElementById('noise-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const noiseEnabled = this.classList.contains('active');
         setBackground('noise', noiseEnabled);
@@ -2247,7 +2371,7 @@ function setupEventListeners() {
     });
 
     // Shadow toggle
-    document.getElementById('shadow-toggle').addEventListener('click', function() {
+    document.getElementById('shadow-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const shadowEnabled = this.classList.contains('active');
         setScreenshotSetting('shadow.enabled', shadowEnabled);
@@ -2293,7 +2417,7 @@ function setupEventListeners() {
     });
 
     // Frame toggle
-    document.getElementById('frame-toggle').addEventListener('click', function() {
+    document.getElementById('frame-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const frameEnabled = this.classList.contains('active');
         setScreenshotSetting('frame.enabled', frameEnabled);
@@ -2335,7 +2459,7 @@ function setupEventListeners() {
     });
 
     // Headline toggle
-    document.getElementById('headline-toggle').addEventListener('click', function() {
+    document.getElementById('headline-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const enabled = this.classList.contains('active');
         setTextValue('headlineEnabled', enabled);
@@ -2351,7 +2475,7 @@ function setupEventListeners() {
     });
 
     // Subheadline toggle
-    document.getElementById('subheadline-toggle').addEventListener('click', function() {
+    document.getElementById('subheadline-toggle').addEventListener('click', function () {
         this.classList.toggle('active');
         const enabled = this.classList.contains('active');
         setTextValue('subheadlineEnabled', enabled);
@@ -2783,16 +2907,16 @@ function addSubheadlineLanguage(lang, flag) {
 function removeHeadlineLanguage(lang) {
     const text = getTextSettings();
     if (lang === 'en') return; // Can't remove default
-    
+
     const index = text.headlineLanguages.indexOf(lang);
     if (index > -1) {
         text.headlineLanguages.splice(index, 1);
         delete text.headlines[lang];
-        
+
         if (text.currentHeadlineLang === lang) {
             text.currentHeadlineLang = 'en';
         }
-        
+
         updateHeadlineLanguageUI();
         switchHeadlineLanguage(text.currentHeadlineLang);
         saveState();
@@ -2802,16 +2926,16 @@ function removeHeadlineLanguage(lang) {
 function removeSubheadlineLanguage(lang) {
     const text = getTextSettings();
     if (lang === 'en') return; // Can't remove default
-    
+
     const index = text.subheadlineLanguages.indexOf(lang);
     if (index > -1) {
         text.subheadlineLanguages.splice(index, 1);
         delete text.subheadlines[lang];
-        
+
         if (text.currentSubheadlineLang === lang) {
             text.currentSubheadlineLang = 'en';
         }
-        
+
         updateSubheadlineLanguageUI();
         switchSubheadlineLanguage(text.currentSubheadlineLang);
         saveState();
@@ -2848,22 +2972,22 @@ function updateSubheadlineLanguageUI() {
 let currentTranslateTarget = null;
 
 const languageNames = {
-    'en': 'English (US)', 'en-gb': 'English (UK)', 'de': 'German', 'fr': 'French', 
+    'en': 'English (US)', 'en-gb': 'English (UK)', 'de': 'German', 'fr': 'French',
     'es': 'Spanish', 'it': 'Italian', 'pt': 'Portuguese', 'pt-br': 'Portuguese (BR)',
     'nl': 'Dutch', 'ru': 'Russian', 'ja': 'Japanese', 'ko': 'Korean',
     'zh': 'Chinese (Simplified)', 'zh-tw': 'Chinese (Traditional)', 'ar': 'Arabic',
     'hi': 'Hindi', 'tr': 'Turkish', 'pl': 'Polish', 'sv': 'Swedish',
     'da': 'Danish', 'no': 'Norwegian', 'fi': 'Finnish', 'th': 'Thai',
-    'vi': 'Vietnamese', 'id': 'Indonesian'
+    'vi': 'Vietnamese', 'id': 'Indonesian', 'uk': 'Ukrainian'
 };
 
 function openTranslateModal(target) {
     currentTranslateTarget = target;
     const text = getTextSettings();
     const isHeadline = target === 'headline';
-    
+
     document.getElementById('translate-target-type').textContent = isHeadline ? 'Headline' : 'Subheadline';
-    
+
     const languages = isHeadline ? text.headlineLanguages : text.subheadlineLanguages;
     const texts = isHeadline ? text.headlines : text.subheadlines;
 
@@ -2877,14 +3001,14 @@ function openTranslateModal(target) {
         if (index === 0) option.selected = true;
         sourceSelect.appendChild(option);
     });
-    
+
     // Update source preview
     updateTranslateSourcePreview();
-    
+
     // Populate target languages
     const targetsContainer = document.getElementById('translate-targets');
     targetsContainer.innerHTML = '';
-    
+
     languages.forEach(lang => {
         const item = document.createElement('div');
         item.className = 'translate-target-item';
@@ -2898,7 +3022,7 @@ function openTranslateModal(target) {
         `;
         targetsContainer.appendChild(item);
     });
-    
+
     document.getElementById('translate-modal').classList.add('visible');
 }
 
@@ -2908,7 +3032,7 @@ function updateTranslateSourcePreview() {
     const isHeadline = currentTranslateTarget === 'headline';
     const texts = isHeadline ? text.headlines : text.subheadlines;
     const sourceText = texts[sourceLang] || '';
-    
+
     document.getElementById('source-text-preview').textContent = sourceText || 'No text entered';
 }
 
@@ -3073,14 +3197,14 @@ Translate to these language codes: ${targetLangs.join(', ')}`;
 function showAppAlert(message, type = 'info') {
     return new Promise((resolve) => {
         const iconBg = type === 'error' ? 'rgba(255, 69, 58, 0.2)' :
-                       type === 'success' ? 'rgba(52, 199, 89, 0.2)' :
-                       'rgba(10, 132, 255, 0.2)';
+            type === 'success' ? 'rgba(52, 199, 89, 0.2)' :
+                'rgba(10, 132, 255, 0.2)';
         const iconColor = type === 'error' ? '#ff453a' :
-                          type === 'success' ? '#34c759' :
-                          'var(--accent)';
+            type === 'success' ? '#34c759' :
+                'var(--accent)';
         const iconPath = type === 'error' ? '<path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>' :
-                         type === 'success' ? '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' :
-                         '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+            type === 'success' ? '<path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' :
+                '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
 
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay visible';
@@ -4013,6 +4137,13 @@ function updateScreenshotList() {
                         </svg>
                         Apply style to all...
                     </button>
+                    <button class="screenshot-menu-item screenshot-duplicate" data-index="${index}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Duplicate
+                    </button>
                     <button class="screenshot-menu-item screenshot-delete danger" data-index="${index}">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M18 6L6 18M6 6l12 12"/>
@@ -4225,6 +4356,15 @@ function updateScreenshotList() {
                 e.stopPropagation();
                 menu?.classList.remove('open');
                 showApplyStyleModal(index);
+            });
+        }
+
+        const duplicateBtn = item.querySelector('.screenshot-duplicate');
+        if (duplicateBtn) {
+            duplicateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu?.classList.remove('open');
+                duplicateScreenshot(index);
             });
         }
 
@@ -4926,7 +5066,7 @@ function drawDeviceFrameToContext(context, x, y, width, height, settings) {
     context.strokeStyle = frameColor;
     context.lineWidth = frameWidth;
     context.beginPath();
-    context.roundRect(x - frameWidth/2, y - frameWidth/2, width + frameWidth, height + frameWidth, radius);
+    context.roundRect(x - frameWidth / 2, y - frameWidth / 2, width + frameWidth, height + frameWidth, radius);
     context.stroke();
     context.globalAlpha = 1;
 }
@@ -5230,7 +5370,7 @@ function drawDeviceFrame(x, y, width, height) {
     ctx.strokeStyle = frameColor;
     ctx.lineWidth = frameWidth;
     ctx.beginPath();
-    roundRect(ctx, x - frameWidth/2, y - frameWidth/2, width + frameWidth, height + frameWidth, radius);
+    roundRect(ctx, x - frameWidth / 2, y - frameWidth / 2, width + frameWidth, height + frameWidth, radius);
     ctx.stroke();
     ctx.globalAlpha = 1;
 }
@@ -5250,7 +5390,7 @@ function drawText() {
     if (!headline && !subheadline) return;
 
     const padding = dims.width * 0.08;
-    const textY = text.position === 'top' 
+    const textY = text.position === 'top'
         ? dims.height * (text.offsetY / 100)
         : dims.height * (1 - text.offsetY / 100);
 
