@@ -151,6 +151,19 @@ Your API key is stored locally in your browser and only sent to the respective A
 - Claude/OpenAI/Google APIs for translations
 - Docker + nginx for containerized deployment
 
+## Apps Using This Project
+
+Built something with this tool? Add your app to the list by submitting a pull request!
+
+| App | Description | Link |
+|-----|-------------|------|
+| Cable | Manage your 12V systems like Boats and RVs | [cable.yuzuhub.com](https://cable.yuzuhub.com) |
+| Eno | Wine pairings and food pairings made easy | [eno.yuzuhub.com](https://eno.yuzuhub.com) |
+| TravelRates Currency Converter* | Exchange Rates for Travelers | [apple.com](https://apps.apple.com/sg/app/travelrates-currency-converter/id6756080378) |
+| Trakz Sales Tracker | Manage sales for restaurants and small businesses | [apple.com](https://apps.apple.com/us/app/trakz-sales-tracker/id6748954468) |
+| AI Soccer Insights Football IQ | AI-powered football predictions and insights | [apple.com](https://apps.apple.com/us/app/ai-soccer-insights-football-iq/id6592649804) |
+| *Your app here* | *Submit a PR to add your app* | *Your app link* |
+
 ## License
 
 MIT License - feel free to use, modify, and distribute.
