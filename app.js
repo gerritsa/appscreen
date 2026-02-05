@@ -282,7 +282,31 @@ async function fetchAllGoogleFonts() {
     }
 
     try {
-        // Using a curated list of 500+ popular fonts instead of API to avoid rate limits
+        // Try to fetch from Google Fonts API v2
+        // API key is optional - the API works without it but has lower rate limits
+        const apiKey = state.settings?.googleFontsApiKey || '';
+        const apiUrl = `https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity${apiKey ? '&key=' + apiKey : ''}`;
+        
+        try {
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.items && data.items.length > 0) {
+                    // Extract font family names from API response
+                    googleFonts.allFonts = data.items.map(font => font.family);
+                    console.log(`Loaded ${googleFonts.allFonts.length} fonts from Google Fonts API`);
+                    return googleFonts.allFonts;
+                }
+            } else if (response.status === 429) {
+                console.warn('Google Fonts API rate limit reached, using fallback font list');
+            } else {
+                console.warn(`Google Fonts API returned status ${response.status}, using fallback font list`);
+            }
+        } catch (apiError) {
+            console.warn('Failed to fetch from Google Fonts API, using fallback font list:', apiError);
+        }
+
+        // Fallback to curated list of 1000+ popular fonts
         // This list covers the most commonly used fonts on Google Fonts
         googleFonts.allFonts = [
             ...googleFonts.popular,
