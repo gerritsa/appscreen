@@ -6326,7 +6326,19 @@ async function exportAppStorePackage(target) {
         devices = devices.concat(appStoreTargets.android);
     }
     
-    if (devices.length === 0) return;
+    if (devices.length === 0) return false;
+
+    // Ask for destination directory
+    const result = await electronAPI.showOpenDialog({
+        properties: ['openDirectory', 'createDirectory'],
+        title: `Select folder to save ${target === 'ios' ? 'iOS' : 'Android'} packages`
+    });
+
+    if (result.canceled || result.filePaths.length === 0) {
+        return false;
+    }
+
+    const baseOutputDir = result.filePaths[0];
 
     // Save original state
     const originalDevice = state.outputDevice;
@@ -6339,8 +6351,6 @@ async function exportAppStorePackage(target) {
         subheadline: s.text.currentSubheadlineLang
     }));
 
-    const zip = new JSZip();
-    
     // Show progress
     showExportProgress('Starting package export...', `Target: ${target}`, 0);
     
@@ -6425,12 +6435,19 @@ async function exportAppStorePackage(target) {
                  const dataUrl = canvas.toDataURL('image/png');
                  const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
                  
-                 const path = `${platformFolder}/${deviceFolder}/${lang}/screenshot-${j+1}.png`;
-                 zip.file(path, base64Data, { base64: true });
+                 // Construct full path
+                 const dirPath = `${baseOutputDir}/${platformFolder}/${deviceFolder}/${lang}`;
+                 const filePath = `${dirPath}/screenshot-${j+1}.png`;
+
+                 // Ensure directory exists
+                 await electronAPI.ensureDir(dirPath);
+
+                 // Write file directly
+                 await electronAPI.writeFileBase64({ path: filePath, data: base64Data });
              }
 
              currentStep++;
-             const percent = Math.min(95, Math.round((currentStep / totalSteps) * 90));
+             const percent = Math.min(100, Math.round((currentStep / totalSteps) * 100));
              showExportProgress('Exporting Package...', `${platformFolder} ${deviceFolder} (${langName})`, percent);
         }
     }
@@ -6451,20 +6468,13 @@ async function exportAppStorePackage(target) {
         showExportProgress('Export Cancelled', 'Restoring original view...', 100);
         await new Promise(resolve => setTimeout(resolve, 1000));
         hideExportProgress();
-        return;
+        return false;
     }
-    
-    // Generate ZIP
-    showExportProgress('Generating Package ZIP...', 'Compressing...', 95);
-    const content = await zip.generateAsync({ type: 'blob' });
     
     showExportProgress('Complete!', '', 100);
     setTimeout(hideExportProgress, 1500);
     
-    const link = document.createElement('a');
-    link.download = `AppStore_Package_${target}.zip`;
-    link.href = URL.createObjectURL(content);
-    link.click();
+    return true;
 }
 
 // Event Listeners for Export Package

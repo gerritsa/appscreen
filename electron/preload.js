@@ -22,5 +22,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     scanForScreenshots: (options) => ipcRenderer.invoke('scan-for-screenshots', options),
 
     // Get config
-    getConfig: () => ipcRenderer.invoke('get-config')
+    getConfig: () => ipcRenderer.invoke('get-config'),
+
+    // File system operations
+    ensureDir: (path) => ipcRenderer.invoke('ensure-dir', path),
+    writeFileBase64: (data) => ipcRenderer.invoke('write-file-base64', data)
 });

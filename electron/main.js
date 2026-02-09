@@ -441,6 +441,31 @@ ipcMain.handle('show-open-dialog', async (event, options) => {
     return result;
 });
 
+// Ensure directory exists
+ipcMain.handle('ensure-dir', async (event, dirPath) => {
+    try {
+        if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+        return { success: true };
+    } catch (error) {
+        console.error('Error ensuring directory:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Write base64 file directly
+ipcMain.handle('write-file-base64', async (event, { path: filePath, data }) => {
+    try {
+        const buffer = Buffer.from(data, 'base64');
+        fs.writeFileSync(filePath, buffer);
+        return { success: true };
+    } catch (error) {
+        console.error('Error writing file:', error);
+        return { success: false, error: error.message };
+    }
+});
+
 // Handle settings communication between preferences window and main app
 ipcMain.handle('get-settings', async () => {
     // Get settings from main window's localStorage via executeJavaScript
