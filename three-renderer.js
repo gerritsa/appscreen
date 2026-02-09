@@ -41,8 +41,8 @@ const deviceConfigs = {
     samsung: {
         modelPath: 'models/samsung-galaxy-s25-ultra.glb',
         aspectRatio: 1440 / 3120,
-        screenHeightFactor: 0.66,
-        screenOffset: { x: 0, y: 0.0, z: 0.08},  // Will need adjustment
+        screenHeightFactor: 0.665, // Slightly increased to fit better
+        screenOffset: { x: 0, y: 0.0, z: 0.085},  // Increased Z to prevent z-fighting/clipping
         positionOffsetFactor: 0.5,
         cornerRadiusFactor: 0.04,
         modelRotation: { x: 0, y: 0, z: 0 }  // Adjust to correct model tilt (in degrees)
@@ -209,6 +209,7 @@ function loadPhoneModel() {
             const screenOffset = config.screenOffset;
 
             phonePivot = new THREE.Group();
+            phonePivot.userData.isPhonePivot = true; // Tag for identification
 
             // Offset the phone model so the screen center is at the pivot's origin
             phoneModel.position.set(
@@ -218,6 +219,9 @@ function loadPhoneModel() {
             );
 
             phonePivot.add(phoneModel);
+            
+            // Ensure no other pivots are in the scene
+            clearAllPhonePivots();
             threeScene.add(phonePivot);
 
             // Create a custom screen plane overlay since the model's UV mapping may be incorrect
@@ -250,9 +254,35 @@ function loadPhoneModel() {
             console.log('Loading phone model... ' + percent + '%');
         },
         (error) => {
+            phoneModelLoading = false;
             console.error('Error loading phone model:', error);
         }
     );
+}
+
+// Utility to clear ALL phone pivots from the scene to prevent ghosting
+function clearAllPhonePivots() {
+    if (!threeScene) return;
+    const toRemove = [];
+    threeScene.children.forEach(child => {
+        if (child.userData && child.userData.isPhonePivot) {
+            toRemove.push(child);
+        }
+    });
+
+    toRemove.forEach(pivot => {
+        threeScene.remove(pivot);
+        pivot.traverse((child) => {
+            if (child.isMesh) {
+                child.geometry?.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material?.dispose();
+                }
+            }
+        });
+    });
 }
 
 // Switch to a different phone model
@@ -269,7 +299,8 @@ function switchPhoneModel(deviceType) {
 
     // Update current device type
     currentDeviceModel = deviceType;
-    phoneModelLoading = false; // Reset so we can load the new one
+    phoneModelLoading = true;
+    phoneModelLoaded = false;
 
     // Remove current pivot (which contains the model) from scene
     if (phonePivot && threeScene) {
@@ -277,7 +308,11 @@ function switchPhoneModel(deviceType) {
         phonePivot.traverse((child) => {
             if (child.isMesh) {
                 child.geometry?.dispose();
-                child.material?.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material?.dispose();
+                }
             }
         });
         phonePivot = null;
@@ -304,6 +339,21 @@ function switchPhoneModel(deviceType) {
     loader.load(
         config.modelPath,
         (gltf) => {
+            phoneModelLoading = false;
+
+            // SAFETY CHECK: If currentDeviceModel changed while loading this one, abort
+            if (currentDeviceModel !== deviceType) {
+                console.log('Model load finished for ' + deviceType + ' but current is now ' + currentDeviceModel + ', aborting.');
+                gltf.scene.traverse(c => {
+                    if (c.isMesh) {
+                        c.geometry?.dispose();
+                        if (Array.isArray(c.material)) c.material.forEach(m => m.dispose());
+                        else c.material?.dispose();
+                    }
+                });
+                return;
+            }
+
             phoneModel = gltf.scene;
 
             // Center and scale the model
@@ -320,6 +370,7 @@ function switchPhoneModel(deviceType) {
             // Create a pivot group for rotation around screen center
             const screenOffset = config.screenOffset;
             phonePivot = new THREE.Group();
+            phonePivot.userData.isPhonePivot = true; // Tag for identification
 
             // Offset the phone model so the screen center is at the pivot's origin
             phoneModel.position.set(
@@ -329,6 +380,9 @@ function switchPhoneModel(deviceType) {
             );
 
             phonePivot.add(phoneModel);
+
+            // Ensure no other pivots are in the scene (very important to prevent ghost frames)
+            clearAllPhonePivots();
             threeScene.add(phonePivot);
 
             // Create screen overlay for this device
@@ -360,6 +414,7 @@ function switchPhoneModel(deviceType) {
             console.log('Loading ' + deviceType + ' model... ' + percent + '%');
         },
         (error) => {
+            phoneModelLoading = false;
             console.error('Error loading ' + deviceType + ' model:', error);
         }
     );
@@ -545,6 +600,7 @@ function createRoundedScreenImage(image, cornerRadius) {
 
 // Update the screen texture with current screenshot
 function updateScreenTexture() {
+    if (typeof state !== 'undefined' && state.suppressUpdates) return;
     if (!phoneModel) return;
     if (typeof state === 'undefined' || !state.screenshots.length) return;
 

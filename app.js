@@ -8,6 +8,7 @@ const state = {
     projectLanguages: ['en'], // Languages available in this project
     customWidth: 1290,
     customHeight: 2796,
+    suppressUpdates: false, // Flag to prevent UI/Canvas updates during bulk operations
     // Default settings applied to new screenshots
     defaults: {
         background: {
@@ -15,8 +16,8 @@ const state = {
             gradient: {
                 angle: 135,
                 stops: [
-                    { color: '#667eea', position: 0 },
-                    { color: '#764ba2', position: 100 }
+                    { color: '#083D4F', position: 0 },
+                    { color: '#A3FFF0', position: 100 }
                 ]
             },
             solid: '#1a1a2e',
@@ -25,18 +26,18 @@ const state = {
             imageBlur: 0,
             overlayColor: '#000000',
             overlayOpacity: 0,
-            noise: false,
-            noiseIntensity: 10
+            noise: true,
+            noiseIntensity: 20
         },
         screenshot: {
-            scale: 70,
-            y: 60,
+            scale: 82, // Matches config
+            y: 123,     // Matches config
             x: 50,
             rotation: 0,
             perspective: 0,
             cornerRadius: 24,
-            use3D: false,
-            device3D: 'iphone',
+            use3D: true,
+            device3D: 'samsung',
             rotation3D: { x: 0, y: 0, z: 0 },
             shadow: {
                 enabled: true,
@@ -125,6 +126,131 @@ function setBackground(key, value) {
             screenshot.background[key] = value;
         }
     }
+}
+
+// Check if a screenshot filename has specific config overrides
+// Check if a screenshot filename has specific config overrides
+function applyScreenshotConfig(screenshotObj, filename) {
+    if (!state.screenshotConfig) return;
+
+    let mergedConfig = {};
+
+    // 1. Apply Platform defaults (if available)
+    if (state.screenshotConfig.platforms) {
+        let platform = null;
+        const lowerName = filename.toLowerCase();
+        if (lowerName.includes('android')) platform = 'android';
+        else if (lowerName.includes('ios')) platform = 'ios';
+        
+        if (platform && state.screenshotConfig.platforms[platform]) {
+            // Deep merge platform config
+            deepMerge(mergedConfig, state.screenshotConfig.platforms[platform]);
+        }
+    }
+
+    // 2. Apply Specific matched config
+    let fileConfig = state.screenshotConfig.screenshots ? state.screenshotConfig.screenshots[filename] : null;
+    
+    // If not found, try matching base filename without extension
+    if (!fileConfig && state.screenshotConfig.screenshots) {
+        const baseName = filename.split('.')[0];
+        // Try to find a key that starts with this base name
+        const key = Object.keys(state.screenshotConfig.screenshots).find(k => k.split('.')[0] === baseName);
+        if (key) fileConfig = state.screenshotConfig.screenshots[key];
+    }
+
+    // Try wildcard matching
+    if (!fileConfig && state.screenshotConfig.screenshots) {
+        const lowerFilename = filename.toLowerCase();
+        const key = Object.keys(state.screenshotConfig.screenshots).find(k => {
+            if (k.includes('*')) {
+                const lowerK = k.toLowerCase();
+                const parts = lowerK.split('*');
+                // Handle cases where parts might be empty strings (e.g. *.png)
+                const startMatch = parts[0] === '' || lowerFilename.startsWith(parts[0]);
+                const endMatch = parts[1] === '' || lowerFilename.endsWith(parts[1]);
+                return startMatch && endMatch;
+            }
+            return false;
+        });
+        if (key) fileConfig = state.screenshotConfig.screenshots[key];
+    }
+
+    if (fileConfig) {
+        deepMerge(mergedConfig, fileConfig);
+    }
+
+    if (Object.keys(mergedConfig).length > 0) {
+        // console.log('Applying merged config for', filename, mergedConfig); // Reduced log noise
+        
+        // Apply background
+        if (mergedConfig.background) {
+            if (mergedConfig.background.solid) screenshotObj.background.solid = mergedConfig.background.solid;
+            if (mergedConfig.background.type) screenshotObj.background.type = mergedConfig.background.type;
+            if (mergedConfig.background.gradient) Object.assign(screenshotObj.background.gradient, mergedConfig.background.gradient);
+            if (mergedConfig.background.image !== undefined) screenshotObj.background.image = mergedConfig.background.image; // Handle null
+             // ... map other properties as needed
+        }
+
+        // Apply text (headlines/subheadlines)
+        if (mergedConfig.headline) {
+           if (typeof mergedConfig.headline === 'object') {
+               Object.assign(screenshotObj.text.headlines, mergedConfig.headline);
+           } else {
+               screenshotObj.text.headlines['en'] = mergedConfig.headline;
+           }
+        }
+        
+        if (mergedConfig.subheadline) {
+             if (typeof mergedConfig.subheadline === 'object') {
+               Object.assign(screenshotObj.text.subheadlines, mergedConfig.subheadline);
+           } else {
+               screenshotObj.text.subheadlines['en'] = mergedConfig.subheadline;
+           }
+           screenshotObj.text.subheadlineEnabled = true;
+        }
+
+        // Apply text styles
+        if (mergedConfig.text) {
+             Object.assign(screenshotObj.text, mergedConfig.text);
+        }
+
+        // Apply screenshot settings (NEW)
+        if (mergedConfig.screenshot) {
+            for (const key in mergedConfig.screenshot) {
+                if (typeof mergedConfig.screenshot[key] === 'object' && mergedConfig.screenshot[key] !== null && !Array.isArray(mergedConfig.screenshot[key])) {
+                     // Merge nested objects (shadow, frame, rotation3D)
+                     if (!screenshotObj.screenshot[key]) screenshotObj.screenshot[key] = {};
+                     Object.assign(screenshotObj.screenshot[key], mergedConfig.screenshot[key]);
+                } else {
+                     screenshotObj.screenshot[key] = mergedConfig.screenshot[key];
+                }
+            }
+            
+            // Sync deviceType label for sidebar to match device3D
+            if (mergedConfig.screenshot.device3D) {
+                const device = mergedConfig.screenshot.device3D.toLowerCase();
+                if (device === 'iphone') screenshotObj.deviceType = 'iPhone';
+                else if (device === 'samsung') screenshotObj.deviceType = 'Samsung';
+                else if (device === 'ipad') screenshotObj.deviceType = 'iPad';
+                else screenshotObj.deviceType = mergedConfig.screenshot.device3D;
+            }
+        }
+    }
+}
+
+// Simple deep merge helper
+// Simple deep merge helper
+function deepMerge(target, source) {
+    if (!source) return target;
+    for (const key of Object.keys(source)) {
+        if (source[key] instanceof Object && key in target && target[key] instanceof Object && !Array.isArray(source[key])) {
+            Object.assign(target[key], deepMerge(target[key], source[key]));
+        } else {
+            target[key] = source[key];
+        }
+    }
+    return target;
 }
 
 function setScreenshotSetting(key, value) {
@@ -960,7 +1086,17 @@ async function init() {
     try {
         await openDatabase();
         await loadProjectsMeta();
+        
+        // Load config first to set defaults
+        await loadConfig();
+        
         await loadState();
+
+        // If no state loaded (fresh start), scan for available screenshots
+        if (state.screenshots.length === 0) {
+            checkForScreenshots();
+        }
+        
         syncUIWithState();
         updateCanvas();
     } catch (e) {
@@ -1237,11 +1373,45 @@ function loadState() {
 
                     // Load defaults (new format) or use migrated settings
                     if (parsed.defaults) {
-                        state.defaults = parsed.defaults;
+                        // Merge saved defaults with current config defaults (config wins for structure, saved for values? No, config should win for defaults)
+                        // Actually, we want config defaults to update the state, but maybe keep some user overrides?
+                        // For now, let's deep merge saved defaults INTO the config defaults, so config provides new structure/values
+                        // identifying what is "user preference" vs "old default" is hard. 
+                        // Let's assume the external config is the SOURCE OF TRUTH for defaults.
+                        
+                        // We already have fresh defaults in state.defaults from loadConfig().
+                        // We should only override them if the user explicitly changed them in the UI? 
+                        // But we don't track that. 
+                        
+                        // Compromise: Deep merge saved defaults ON TOP of config defaults? 
+                        // No, then old "iPhone" default overwrites new "Samsung" default.
+                        
+                        // FIX: If we have a valid external config, use IT as the base for defaults.
+                        // But we might lose manual changes to defaults made in the UI.
+                        // Given the user wants "Configuration via JSON", we prioritize the JSON.
+                        
+                         if (state.screenshotConfig) {
+                             // potential issue: completely ignoring saved defaults might annoy users who changed things in UI.
+                             // But for this use case, it's what's requested.
+                             console.log('Using external config defaults over saved defaults');
+                             // state.defaults is already set by loadConfig, so we might just NOT overwrite it with parsed.defaults?
+                             // But we might want to preserve some things?
+                             
+                             // Let's just NOT overwrite state.defaults with parsed.defaults if state.screenshotConfig exists.
+                             // This effectively makes the JSON valid for the session.
+                         } else {
+                             state.defaults = parsed.defaults;
+                         }
                     } else {
-                        state.defaults.background = migratedBackground;
-                        state.defaults.screenshot = migratedScreenshot;
-                        state.defaults.text = migratedText;
+                        // Migration case...
+                        // If we have config, maybe use that instead of migrated? 
+                         if (state.screenshotConfig) {
+                              console.log('Using external config defaults instead of migration');
+                         } else {
+                            state.defaults.background = migratedBackground;
+                            state.defaults.screenshot = migratedScreenshot;
+                            state.defaults.text = migratedText;
+                         }
                     }
                 } else {
                     // New project, reset to defaults
@@ -2113,6 +2283,7 @@ function setupEventListeners() {
                 customInputs.classList.remove('visible');
                 outputDropdown.classList.remove('open');
             }
+            updateScreenshotList(); // Refresh list to apply platform filters
             updateCanvas();
         });
     });
@@ -3917,7 +4088,8 @@ async function processElectronImageFile(fileData) {
             }
 
             // Detect language from filename
-            const detectedLang = detectLanguageFromFilename(fileData.name);
+            // Detect language from filename or use explicit language if provided
+            const detectedLang = fileData.language || detectLanguageFromFilename(fileData.name);
 
             // Check if this is a localized version of an existing screenshot
             const existingIndex = findScreenshotByBaseFilename(fileData.name);
@@ -4045,7 +4217,7 @@ function createNewScreenshot(img, src, name, lang, deviceType) {
     }
 
     // Each screenshot gets its own copy of all settings from defaults
-    state.screenshots.push({
+    const newScreenshot = {
         image: img, // Keep for legacy compatibility
         name: name,
         deviceType: deviceType,
@@ -4055,7 +4227,14 @@ function createNewScreenshot(img, src, name, lang, deviceType) {
         text: JSON.parse(JSON.stringify(state.defaults.text)),
         // Legacy overrides for backwards compatibility
         overrides: {}
-    });
+    };
+
+    // Apply config overrides specifically for this file
+    applyScreenshotConfig(newScreenshot, name);
+
+    state.screenshots.push(newScreenshot);
+
+    if (state.suppressUpdates) return;
 
     updateScreenshotList();
     if (state.screenshots.length === 1) {
@@ -4068,6 +4247,7 @@ function createNewScreenshot(img, src, name, lang, deviceType) {
 let draggedScreenshotIndex = null;
 
 function updateScreenshotList() {
+    if (state.suppressUpdates) return;
     screenshotList.innerHTML = '';
     noScreenshot.style.display = state.screenshots.length === 0 ? 'block' : 'none';
 
@@ -4082,8 +4262,52 @@ function updateScreenshotList() {
         screenshotList.appendChild(hint);
     }
 
+    // Identify valid indices based on platform filtering
+    const visibleIndices = [];
+    const outputDevice = (state.outputDevice || '').toLowerCase();
+    const targetIsAndroid = outputDevice.includes('android') || outputDevice.includes('samsung') || outputDevice.includes('pixel');
+    const targetIsIOS = outputDevice.includes('iphone') || outputDevice.includes('ios');
+
+    state.screenshots.forEach((s, idx) => {
+        const filename = (s.originalName || '').toLowerCase();
+        const deviceType = (s.screenshot?.device3D || '').toLowerCase();
+        let isAndroid = filename.includes('android') || deviceType.includes('samsung') || deviceType.includes('pixel');
+        let isIOS = filename.includes('ios') || deviceType.includes('iphone');
+        
+        if (!isAndroid && !isIOS) { isAndroid = true; isIOS = true; }
+
+        let isVisible = true;
+        if (targetIsAndroid && isIOS && !isAndroid) isVisible = false;
+        if (targetIsIOS && isAndroid && !isIOS) isVisible = false;
+
+        if (isVisible) visibleIndices.push(idx);
+    });
+
+    // If current selection is hidden, select first visible
+    if (visibleIndices.length > 0 && !visibleIndices.includes(state.selectedIndex)) {
+        state.selectedIndex = visibleIndices[0];
+        // Trigger update to reflect change
+        setTimeout(updateCanvas, 0); 
+    }
+
     state.screenshots.forEach((screenshot, index) => {
+        // Apply filter again for render
+         const filename = (screenshot.originalName || '').toLowerCase();
+        const deviceType = (screenshot.screenshot?.device3D || '').toLowerCase();
+        let isAndroid = filename.includes('android') || deviceType.includes('samsung') || deviceType.includes('pixel');
+        let isIOS = filename.includes('ios') || deviceType.includes('iphone');
+        
+        if (!isAndroid && !isIOS) { isAndroid = true; isIOS = true; }
+
+        let isVisible = true;
+        if (targetIsAndroid && isIOS && !isAndroid) isVisible = false;
+        if (targetIsIOS && isAndroid && !isIOS) isVisible = false;
+
         const item = document.createElement('div');
+        if (!isVisible) {
+            item.style.display = 'none';
+        }
+        
         const isTransferTarget = state.transferTarget === index;
         const isTransferMode = state.transferTarget !== null;
         item.className = 'screenshot-item' +
@@ -4619,6 +4843,7 @@ function getCanvasDimensions() {
 }
 
 function updateCanvas() {
+    if (state.suppressUpdates) return;
     saveState(); // Persist state on every update
     const dims = getCanvasDimensions();
     canvas.width = dims.width;
@@ -4643,6 +4868,12 @@ function updateCanvas() {
     if (state.screenshots.length > 0) {
         const ss = getScreenshotSettings();
         const use3D = ss.use3D || false;
+        
+        // Ensure the correct 3D model is loaded and switched
+        if (use3D && typeof switchPhoneModel === 'function' && ss.device3D) {
+            switchPhoneModel(ss.device3D);
+        }
+
         if (use3D && typeof renderThreeJSToCanvas === 'function' && phoneModelLoaded) {
             // In 3D mode, update the screen texture and render the phone model
             if (typeof updateScreenTexture === 'function') {
@@ -5402,7 +5633,15 @@ function drawText() {
     // Draw headline
     if (headline) {
         const fontStyle = text.headlineItalic ? 'italic' : 'normal';
-        ctx.font = `${fontStyle} ${text.headlineWeight} ${text.headlineSize}px ${text.headlineFont}`;
+        // Only quote the font name if it doesn't look like a font stack (comma-separated list)
+        // and doesn't already have quotes.
+        let fontValue = text.headlineFont;
+        if (fontValue.includes(',') || fontValue.startsWith('"') || fontValue.startsWith("'")) {
+            ctx.font = `${fontStyle} ${text.headlineWeight} ${text.headlineSize}px ${fontValue}`;
+        } else {
+             // Append standard system fallbacks to single font names to prevent Serif default
+            ctx.font = `${fontStyle} ${text.headlineWeight} ${text.headlineSize}px "${fontValue}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+        }
         ctx.fillStyle = text.headlineColor;
 
         const lines = wrapText(ctx, headline, dims.width - padding * 2);
@@ -5459,7 +5698,13 @@ function drawText() {
     if (subheadline) {
         const subFontStyle = text.subheadlineItalic ? 'italic' : 'normal';
         const subWeight = text.subheadlineWeight || '400';
-        ctx.font = `${subFontStyle} ${subWeight} ${text.subheadlineSize}px ${text.subheadlineFont || text.headlineFont}`;
+        let subFontValue = text.subheadlineFont || text.headlineFont;
+        if (subFontValue.includes(',') || subFontValue.startsWith('"') || subFontValue.startsWith("'")) {
+             ctx.font = `${subFontStyle} ${subWeight} ${text.subheadlineSize}px ${subFontValue}`;
+        } else {
+             // Append standard system fallbacks
+             ctx.font = `${subFontStyle} ${subWeight} ${text.subheadlineSize}px "${subFontValue}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+        }
         ctx.fillStyle = hexToRgba(text.subheadlineColor, text.subheadlineOpacity / 100);
 
         const lines = wrapText(ctx, subheadline, dims.width - padding * 2);
@@ -5701,10 +5946,43 @@ async function exportAllLanguages() {
     const originalLang = state.currentLanguage;
     const zip = new JSZip();
 
+    // 1. Identify which screenshots to export based on platform
+    const outputDevice = (state.outputDevice || '').toLowerCase();
+    const targetIsAndroid = outputDevice.includes('android') || outputDevice.includes('samsung') || outputDevice.includes('pixel');
+    const targetIsIOS = outputDevice.includes('iphone') || outputDevice.includes('ios');
+    
+    console.log(`Exporting for Logic: Target=${outputDevice}, IsAndroid=${targetIsAndroid}, IsIOS=${targetIsIOS}`);
+
+    const indicesToExport = [];
+    state.screenshots.forEach((s, i) => {
+        // Determine platform from filename or device type
+        const filename = (s.originalName || '').toLowerCase();
+        const deviceType = (s.screenshot?.device3D || '').toLowerCase();
+        let isAndroid = filename.includes('android') || deviceType.includes('samsung') || deviceType.includes('pixel');
+        let isIOS = filename.includes('ios') || deviceType.includes('iphone');
+        
+        // Fallback: If neither detected, treat as neutral (export for all)
+        if (!isAndroid && !isIOS) {
+            isAndroid = true; 
+            isIOS = true;
+        }
+
+        // If output device is specifically android, skip pure iOS shots
+        if (targetIsAndroid && isIOS && !isAndroid) return;
+        // If output device is specifically iOS, skip pure Android shots
+        if (targetIsIOS && isAndroid && !isIOS) return;
+
+        indicesToExport.push(i);
+    });
+
     const totalLangs = state.projectLanguages.length;
-    const totalScreenshots = state.screenshots.length;
-    const totalItems = totalLangs * totalScreenshots;
+    const totalItems = totalLangs * indicesToExport.length;
     let completedItems = 0;
+
+    if (totalItems === 0) {
+        alert('No matching screenshots found for the selected device.');
+        return;
+    }
 
     // Show progress
     showExportProgress('Exporting...', 'Preparing all languages', 0);
@@ -5726,13 +6004,14 @@ async function exportAllLanguages() {
             s.text.currentSubheadlineLang = lang;
         });
 
-        for (let i = 0; i < state.screenshots.length; i++) {
-            state.selectedIndex = i;
+        for (let j = 0; j < indicesToExport.length; j++) {
+            const index = indicesToExport[j];
+            state.selectedIndex = index;
             updateCanvas();
 
             completedItems++;
             const percent = Math.round((completedItems / totalItems) * 90); // Reserve 10% for ZIP
-            showExportProgress('Exporting...', `${langName}: Screenshot ${i + 1} of ${totalScreenshots}`, percent);
+            showExportProgress('Exporting...', `${langName}: Screenshot ${j + 1} of ${indicesToExport.length}`, percent);
 
             await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -5741,7 +6020,11 @@ async function exportAllLanguages() {
             const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
 
             // Use language code as folder name
-            zip.file(`${lang}/screenshot-${i + 1}.png`, base64Data, { base64: true });
+            // Use the original index + 1 for filename to maintain consistent numbering relative to the filtered set?
+            // Or use indicesToExport[j] + 1 to keep original numbering?
+            // User requested "only need the android screenshots", implying a clean set.
+            // Let's us sequential numbering 1..N based on the export set.
+            zip.file(`${lang}/screenshot-${j + 1}.png`, base64Data, { base64: true });
         }
     }
 
@@ -5769,5 +6052,465 @@ async function exportAllLanguages() {
     URL.revokeObjectURL(link.href);
 }
 
+// Load config from dosio.config.json
+async function loadConfig() {
+    if (!window.electronAPI) return;
+    
+    try {
+        const config = await window.electronAPI.getConfig();
+        if (!config) return;
+
+        console.log('Loaded config:', config);
+
+        // Apply defaults
+        if (config.defaults) {
+            if (config.defaults.device) state.outputDevice = config.defaults.device;
+            
+            if (config.defaults.background) {
+                // Determine type based on properties if not explicit
+                if (!config.defaults.background.type) {
+                     if (config.defaults.background.solid) config.defaults.background.type = 'solid';
+                     if (config.defaults.background.gradient) config.defaults.background.type = 'gradient';
+                     if (config.defaults.background.image) config.defaults.background.type = 'image';
+                }
+                
+                // Merge background settings
+                if (config.defaults.background.type) state.defaults.background.type = config.defaults.background.type;
+                if (config.defaults.background.solid) state.defaults.background.solid = config.defaults.background.solid;
+                if (config.defaults.background.gradient) Object.assign(state.defaults.background.gradient, config.defaults.background.gradient);
+                if (config.defaults.background.overlayColor) state.defaults.background.overlayColor = config.defaults.background.overlayColor;
+                if (config.defaults.background.overlayOpacity !== undefined) state.defaults.background.overlayOpacity = config.defaults.background.overlayOpacity;
+            }
+
+            if (config.defaults.text) {
+                 // Handle potentially array font definitions
+                 const textConfig = { ...config.defaults.text };
+                 if (Array.isArray(textConfig.headlineFont)) {
+                     textConfig.headlineFont = textConfig.headlineFont.join(', ');
+                 }
+                 if (Array.isArray(textConfig.subheadlineFont)) {
+                     textConfig.subheadlineFont = textConfig.subheadlineFont.join(', ');
+                 }
+                 Object.assign(state.defaults.text, textConfig);
+            }
+
+            if (config.defaults.screenshot) {
+                 // Deep merge needed for nested objects like shadow/frame
+                 if (config.defaults.screenshot.shadow) {
+                     if (!state.defaults.screenshot.shadow) state.defaults.screenshot.shadow = {};
+                     Object.assign(state.defaults.screenshot.shadow, config.defaults.screenshot.shadow);
+                 }
+                 if (config.defaults.screenshot.frame) {
+                     if (!state.defaults.screenshot.frame) state.defaults.screenshot.frame = {};
+                     Object.assign(state.defaults.screenshot.frame, config.defaults.screenshot.frame);
+                 }
+                 if (config.defaults.screenshot.rotation3D) {
+                     if (!state.defaults.screenshot.rotation3D) state.defaults.screenshot.rotation3D = {};
+                     Object.assign(state.defaults.screenshot.rotation3D, config.defaults.screenshot.rotation3D);
+                 }
+                 
+                 // Merge top-level properties (scale, x, y, use3D, etc.)
+                 const tempScreenshot = { ...config.defaults.screenshot };
+                 delete tempScreenshot.shadow;
+                 delete tempScreenshot.frame;
+                 delete tempScreenshot.rotation3D;
+                 
+                 Object.assign(state.defaults.screenshot, tempScreenshot);
+            }
+        }
+        
+        // Store screenshot specific config in state
+        state.screenshotConfig = config || {};
+        
+    } catch (e) {
+        console.error('Error loading config:', e);
+    }
+}
+
+// Load automated screenshots
+async function loadAutomatedScreenshots(initialPlatform = null) {
+    if (!window.electronAPI) return;
+    
+    try {
+        console.log(`Scanning for ALL automated screenshots...`);
+        const scanResult = await window.electronAPI.scanForScreenshots();
+        
+        if (scanResult && scanResult.success && scanResult.found) {
+            console.log(`Found platforms:`, scanResult.platforms);
+            
+            // Iterate platforms
+            const platforms = Object.keys(scanResult.platforms);
+            
+            // Prioritize requested platform if any, otherwise default list order
+            // Actually, we want to load ALL. Order doesn't matter too much, but iOS first is standard?
+            // Let's sort to ensure deterministic order
+            platforms.sort(); 
+
+            let totalLoaded = 0;
+            state.suppressUpdates = true;
+
+            for (const platform of platforms) {
+                const languages = scanResult.platforms[platform];
+                // Ensure 'en' is loaded first for a platform if possible, to establish the base screenshot
+                const sortedLanguages = [...languages].sort((a, b) => {
+                    if (a === 'en') return -1;
+                    if (b === 'en') return 1;
+                    return a.localeCompare(b);
+                });
+
+                for (const language of sortedLanguages) {
+                    console.log(`Loading ${platform} - ${language}...`);
+                    const result = await window.electronAPI.getLatestScreenshots({
+                        platform: platform,
+                        language: language
+                    });
+
+                    if (result && result.success && result.images.length > 0) {
+                        // Rename files to include platform and language
+                        // This ensures 'android' vs 'ios' are treated as DIFFERENT screenshots
+                        // And ensures applyScreenshotConfig detects platform
+                        // And detectLanguageFromFilename detects language
+                        const processedImages = result.images.map(img => {
+                            let newName = img.name;
+                            const ext = newName.substring(newName.lastIndexOf('.'));
+                            let base = newName.substring(0, newName.lastIndexOf('.'));
+                            
+                            // 1. Inject Platform if missing
+                            if (!base.toLowerCase().includes(platform.toLowerCase())) {
+                                base = `${base}-${platform}`;
+                            }
+                            
+                            // 2. Inject Language (always, to be safe and explicit)
+                            // detectLanguageFromFilename expects _lang or -lang at end
+                            // e.g. calendar-ios-fr.png
+                             if (!base.toLowerCase().endsWith(`-${language}`) && !base.toLowerCase().endsWith(`_${language}`)) {
+                                base = `${base}-${language}`;
+                             }
+                            
+                            return {
+                                ...img,
+                                name: `${base}${ext}`,
+                                language: language
+                            };
+                        });
+
+                        await processElectronFilesSequentially(processedImages);
+                        totalLoaded += result.images.length;
+                    }
+                }
+            }
+
+            state.suppressUpdates = false;
+
+            if (totalLoaded > 0) {
+                // Select first one if available
+                if (state.screenshots.length > 0) {
+                    state.selectedIndex = 0;
+                }
+
+                // Force update UI after loading everything
+                updateScreenshotList();
+                updateCanvas();
+                saveState();
+                syncUIWithState();
+            } else {
+                console.log('No images loaded despite finding directories.');
+            }
+        } else {
+            console.log('No automated screenshots found.');
+        }
+    } catch (e) {
+        console.error('Error loading automated screenshots:', e);
+    }
+}
+
+let detectedImportPlatform = 'ios'; // Default
+
+// Check for available screenshots on startup
+async function checkForScreenshots() {
+    console.log('Checking for screenshots...');
+    if (!window.electronAPI) return;
+    
+    try {
+        const result = await window.electronAPI.scanForScreenshots({
+            platform: 'ios',
+            language: state.currentLanguage
+        });
+        
+        console.log('Scan result:', result);
+
+        if (result && result.success && result.found) {
+            console.log('Showing import modal');
+            detectedImportPlatform = result.platform || 'ios'; // Store for later
+            showImportFoundModal(result.count, result.timestamp);
+        }
+    } catch (e) {
+        console.error('Error checking for screenshots:', e);
+    }
+}
+
+// Show the "Import Found" sidebar button
+function showImportFoundModal(count, timestamp) {
+    const btn = document.getElementById('import-missed-btn');
+    const txt = document.getElementById('import-missed-count'); // Updated ID
+    
+    if (btn && txt) {
+        txt.textContent = `Found ${count} new screenshots`;
+        btn.style.display = 'flex';
+        // onclick is already in HTML, but good to ensure
+        btn.onclick = window.confirmImportFound;
+    }
+    
+    // Also log it
+    console.log(`Found ${count} new screenshots from run "${timestamp}"`);
+}
+
+// Close the notification
+function closeImportFoundModal() {
+    const btn = document.getElementById('import-missed-btn');
+    if (btn) {
+        btn.style.display = 'none';
+    }
+    
+    // Legacy modal cleanup if present
+    const modal = document.getElementById('import-found-modal');
+    if (modal) {
+        modal.classList.remove('visible');
+    }
+}
+
+// Confirm import action
+async function confirmImportFound() {
+    closeImportFoundModal();
+    // Use the stored platform (e.g. android if that's what was found)
+    await loadAutomatedScreenshots(detectedImportPlatform);
+}
+
+// Expose to global scope for HTML onclick handlers
+window.closeImportFoundModal = closeImportFoundModal;
+window.confirmImportFound = confirmImportFound;
+
 // Initialize the app
 initSync();
+
+// --- Export App Store Package Logic ---
+
+const appStoreTargets = {
+    ios: ['iphone-6.9', 'iphone-6.5', 'iphone-5.5', 'ipad-12.9'],
+    android: ['android-phone', 'android-tablet-7', 'android-tablet-10']
+};
+
+function showExportPackageModal() {
+    const modal = document.getElementById('export-package-modal');
+    if (modal) modal.classList.add('visible');
+}
+
+function hideExportPackageModal() {
+    const modal = document.getElementById('export-package-modal');
+    if (modal) modal.classList.remove('visible');
+}
+
+
+let isExportCancelled = false;
+
+async function exportAppStorePackage(target) {
+    hideExportPackageModal();
+    isExportCancelled = false;
+    
+    // Determine devices
+    let devices = [];
+    if (target === 'ios' || target === 'both') {
+        devices = devices.concat(appStoreTargets.ios);
+    }
+    if (target === 'android' || target === 'both') {
+        devices = devices.concat(appStoreTargets.android);
+    }
+    
+    if (devices.length === 0) return;
+
+    // Save original state
+    const originalDevice = state.outputDevice;
+    const originalIndex = state.selectedIndex;
+    const originalLang = state.currentLanguage;
+    
+    // Save original text languages for each screenshot
+    const originalTextLangs = state.screenshots.map(s => ({
+        headline: s.text.currentHeadlineLang,
+        subheadline: s.text.currentSubheadlineLang
+    }));
+
+    const zip = new JSZip();
+    
+    // Show progress
+    showExportProgress('Starting package export...', `Target: ${target}`, 0);
+    
+    let totalSteps = devices.length * state.projectLanguages.length; 
+    let currentStep = 0;
+    
+    for (const device of devices) {
+        if (isExportCancelled) break;
+
+        // Switch device
+        state.outputDevice = device;
+        updateCanvas();
+        
+        // Wait for 3D model to load/render (longer wait for device switch)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Mapping device key to folder name
+        let platformFolder = '';
+        let deviceFolder = '';
+        
+        if (device.includes('iphone')) { 
+            platformFolder = 'iOS'; 
+            deviceFolder = device.replace('iphone-', '') + 'inch'; 
+        } else if (device.includes('ipad')) { 
+            platformFolder = 'iOS'; 
+            deviceFolder = 'iPad ' + device.replace('ipad-', '') + 'inch'; 
+        } else if (device.includes('android-phone')) { 
+            platformFolder = 'Android'; 
+            deviceFolder = 'Phone'; 
+        } else if (device.includes('android-tablet')) { 
+            platformFolder = 'Android'; 
+            deviceFolder = 'Tablet ' + device.replace('android-tablet-', '') + 'inch'; 
+        }
+        
+        // Iterate languages
+        for (const lang of state.projectLanguages) {
+             if (isExportCancelled) break;
+
+             state.currentLanguage = lang;
+             const langName = languageNames[lang] || lang.toUpperCase();
+
+             // Update headlines for all screenshots to this lang
+             state.screenshots.forEach(s => {
+                s.text.currentHeadlineLang = lang;
+                s.text.currentSubheadlineLang = lang;
+             });
+
+             // Filter screenshots for this platform (reuse logic)
+             const outputDeviceLower = device.toLowerCase();
+             const targetIsAndroid = outputDeviceLower.includes('android') || outputDeviceLower.includes('samsung') || outputDeviceLower.includes('pixel');
+             const targetIsIOS = outputDeviceLower.includes('iphone') || outputDeviceLower.includes('ios');
+             
+             const indicesToExport = [];
+             state.screenshots.forEach((s, idx) => {
+                const filename = (s.originalName || '').toLowerCase();
+                const deviceType = (s.screenshot?.device3D || '').toLowerCase();
+                let isAndroid = filename.includes('android') || deviceType.includes('samsung') || deviceType.includes('pixel');
+                let isIOS = filename.includes('ios') || deviceType.includes('iphone');
+                
+                if (!isAndroid && !isIOS) {
+                    isAndroid = true; 
+                    isIOS = true;
+                }
+        
+                if (targetIsAndroid && isIOS && !isAndroid) return;
+                if (targetIsIOS && isAndroid && !isIOS) return;
+        
+                indicesToExport.push(idx);
+             });
+             
+             // Export matched screenshots
+             for (let j = 0; j < indicesToExport.length; j++) {
+                 if (isExportCancelled) break;
+
+                 const index = indicesToExport[j];
+                 state.selectedIndex = index;
+                 updateCanvas();
+                 
+                 // Wait for render
+                 await new Promise(resolve => setTimeout(resolve, 150)); 
+                 
+                 const dataUrl = canvas.toDataURL('image/png');
+                 const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+                 
+                 const path = `${platformFolder}/${deviceFolder}/${lang}/screenshot-${j+1}.png`;
+                 zip.file(path, base64Data, { base64: true });
+             }
+
+             currentStep++;
+             const percent = Math.min(95, Math.round((currentStep / totalSteps) * 90));
+             showExportProgress('Exporting Package...', `${platformFolder} ${deviceFolder} (${langName})`, percent);
+        }
+    }
+    
+    // Restore state
+    state.outputDevice = originalDevice;
+    state.selectedIndex = originalIndex;
+    state.currentLanguage = originalLang;
+    
+    state.screenshots.forEach((s, i) => {
+        s.text.currentHeadlineLang = originalTextLangs[i].headline;
+        s.text.currentSubheadlineLang = originalTextLangs[i].subheadline;
+    });
+    
+    updateCanvas();
+    
+    if (isExportCancelled) {
+        showExportProgress('Export Cancelled', 'Restoring original view...', 100);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        hideExportProgress();
+        return;
+    }
+    
+    // Generate ZIP
+    showExportProgress('Generating Package ZIP...', 'Compressing...', 95);
+    const content = await zip.generateAsync({ type: 'blob' });
+    
+    showExportProgress('Complete!', '', 100);
+    setTimeout(hideExportProgress, 1500);
+    
+    const link = document.createElement('a');
+    link.download = `AppStore_Package_${target}.zip`;
+    link.href = URL.createObjectURL(content);
+    link.click();
+}
+
+// Event Listeners for Export Package
+document.addEventListener('DOMContentLoaded', () => {
+    const exportPackageBtn = document.getElementById('export-package');
+    if (exportPackageBtn) {
+        exportPackageBtn.addEventListener('click', showExportPackageModal);
+    }
+
+    const exportPackageCancel = document.getElementById('export-package-cancel');
+    if (exportPackageCancel) {
+        exportPackageCancel.addEventListener('click', hideExportPackageModal);
+    }
+
+    const exportPackageIos = document.getElementById('export-package-ios');
+    if (exportPackageIos) {
+        exportPackageIos.addEventListener('click', () => {
+            console.log('Starting iOS export...');
+            exportAppStorePackage('ios');
+        });
+    }
+
+    const exportPackageAndroid = document.getElementById('export-package-android');
+    if (exportPackageAndroid) {
+        exportPackageAndroid.addEventListener('click', () => {
+            console.log('Starting Android export...');
+            exportAppStorePackage('android');
+        });
+    }
+
+    const exportPackageBoth = document.getElementById('export-package-both');
+    if (exportPackageBoth) {
+        exportPackageBoth.addEventListener('click', () => {
+            console.log('Starting All Platform export...');
+            exportAppStorePackage('both');
+        });
+    }
+
+    // Cancel Export Button
+    const cancelExportBtn = document.getElementById('export-cancel-btn');
+    if (cancelExportBtn) {
+        cancelExportBtn.addEventListener('click', () => {
+            console.log('Cancelling export...');
+            isExportCancelled = true;
+            const statusEl = document.getElementById('export-progress-status');
+            if (statusEl) statusEl.textContent = 'Cancelling...';
+        });
+    }
+});

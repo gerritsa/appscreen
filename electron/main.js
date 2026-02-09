@@ -504,3 +504,163 @@ ipcMain.handle('get-llm-providers', async () => {
         return null;
     }
 });
+
+// Helper to find latest screenshot directory
+function findLatestScreenshotDir(baseDir) {
+    if (!fs.existsSync(baseDir)) return null;
+
+    const dirs = fs.readdirSync(baseDir).filter(file => {
+        return fs.statSync(path.join(baseDir, file)).isDirectory();
+    });
+
+    if (dirs.length === 0) return null;
+
+    // Sort by name (which includes timestamp) descending
+    dirs.sort().reverse();
+    return path.join(baseDir, dirs[0]);
+}
+
+// Get latest screenshots
+ipcMain.handle('get-latest-screenshots', async (event, { platform = 'ios', language = 'en' }) => {
+    try {
+        // Assuming GeeLPee is a sibling of the current directory (screenshot-maker-dosio)
+        // Adjust path if needed based on actual structure
+        const baseScreenshotDir = path.resolve(__dirname, '..', '..', 'GeeLPee', 'Screenshots');
+        
+        console.log('Scanning for screenshots in:', baseScreenshotDir);
+
+        if (!fs.existsSync(baseScreenshotDir)) {
+            console.log('Screenshot directory not found');
+            return { success: false, error: 'Screenshot directory not found' };
+        }
+
+        const latestRunDir = findLatestScreenshotDir(baseScreenshotDir);
+        if (!latestRunDir) {
+             return { success: false, error: 'No screenshot runs found' };
+        }
+
+        // Construct path: <latest-run>/<platform>/<language>
+        const targetDir = path.join(latestRunDir, platform, language);
+        
+        console.log('Target screenshot directory:', targetDir);
+
+        if (!fs.existsSync(targetDir)) {
+             return { success: false, error: `Directory not found: ${targetDir}` };
+        }
+
+        // Read files
+        const files = fs.readdirSync(targetDir).filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.png', '.jpg', '.jpeg', '.webp'].includes(ext);
+        });
+
+        const images = files.map(file => {
+             const filePath = path.join(targetDir, file);
+             const data = fs.readFileSync(filePath);
+             const ext = path.extname(file).toLowerCase();
+             const mimeTypes = {
+                 '.png': 'image/png',
+                 '.jpg': 'image/jpeg',
+                 '.jpeg': 'image/jpeg',
+                 '.webp': 'image/webp'
+             };
+             const mimeType = mimeTypes[ext] || 'image/png';
+             const base64 = data.toString('base64');
+             return {
+                 name: file,
+                 dataUrl: `data:${mimeType};base64,${base64}`
+             };
+        });
+
+        return { success: true, images, sourcePath: targetDir };
+
+    } catch (error) {
+        console.error('Error getting screenshots:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Scan for ALL available screenshots
+ipcMain.handle('scan-for-screenshots', async (event) => {
+    try {
+        const baseScreenshotDir = path.resolve(__dirname, '..', '..', 'GeeLPee', 'Screenshots');
+        
+        if (!fs.existsSync(baseScreenshotDir)) {
+            return { success: false, found: false, count: 0 };
+        }
+
+        const latestRunDir = findLatestScreenshotDir(baseScreenshotDir);
+        if (!latestRunDir) {
+             return { success: false, found: false, count: 0 };
+        }
+
+        const platforms = {};
+        const availablePlatforms = ['ios', 'android']; // Known platforms, but we can scan directory too
+        
+        // Scan for platforms
+        const entries = fs.readdirSync(latestRunDir, { withFileTypes: true });
+        
+        for (const entry of entries) {
+            if (entry.isDirectory()) {
+                const platform = entry.name.toLowerCase();
+                // Check if it's a valid platform folder or just any folder? 
+                // Let's assume any folder at this level is a platform
+                
+                const platformDir = path.join(latestRunDir, entry.name);
+                const langEntries = fs.readdirSync(platformDir, { withFileTypes: true });
+                
+                const languages = [];
+                for (const langEntry of langEntries) {
+                    if (langEntry.isDirectory()) {
+                        // verify it has images
+                        const langDir = path.join(platformDir, langEntry.name);
+                        const hasImages = fs.readdirSync(langDir).some(f => {
+                            const ext = path.extname(f).toLowerCase();
+                            return ['.png', '.jpg', '.jpeg', '.webp'].includes(ext);
+                        });
+                        
+                        if (hasImages) {
+                            languages.push(langEntry.name);
+                        }
+                    }
+                }
+                
+                if (languages.length > 0) {
+                    platforms[platform] = languages;
+                }
+            }
+        }
+        
+        const totalPlatforms = Object.keys(platforms).length;
+        const totalLanguages = Object.values(platforms).reduce((acc, curr) => acc + curr.length, 0);
+
+        const timestamp = path.basename(latestRunDir);
+
+        return { 
+            success: true, 
+            found: totalPlatforms > 0, 
+            platforms: platforms, 
+            timestamp: timestamp,
+            basePath: latestRunDir 
+        };
+
+    } catch (error) {
+        console.error('Error scanning screenshots:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Get config file
+ipcMain.handle('get-config', async () => {
+    try {
+        const configPath = path.join(process.cwd(), 'dosio.config.json');
+        if (fs.existsSync(configPath)) {
+            const configData = fs.readFileSync(configPath, 'utf8');
+            return JSON.parse(configData);
+        }
+        return null;
+    } catch (error) {
+        console.error('Error reading config:', error);
+        return null;
+    }
+});

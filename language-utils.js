@@ -205,6 +205,8 @@ function addLocalizedImage(screenshotIndex, lang, image, src, name) {
     }
 
     // Update displays
+    if (state.suppressUpdates) return;
+    
     updateScreenshotList();
     updateCanvas();
     saveState();

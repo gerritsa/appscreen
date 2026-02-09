@@ -1,0 +1,243 @@
+{
+  "platforms": {
+    "android": {
+      "screenshot": {
+        "device3D": "samsung"
+      },
+      "text": {
+        "headlineSize": 120
+      }
+    },
+    "ios": {
+      "screenshot": {
+        "device3D": "iphone"
+      },
+      "text": {
+        "headlineSize": 140
+      }
+    }
+  },
+  "defaults": {
+    "background": {
+      "type": "gradient",
+
+      "gradient": {
+        "angle": 135,
+        "stops": [
+          { "color": "#083D4F", "position": 0 },
+          { "color": "#A3FFF0", "position": 100 }
+        ]
+      },
+      "noise": true,
+      "noiseIntensity": 20
+
+    },
+    "screenshot": {
+      "scale": 82,
+      "y": 123,
+      "x": 50,
+      "use3D": true,
+      "device3D": "iphone",
+      "shadow": {
+        "enabled": true,
+        "color": "#000000",
+        "blur": 40,
+        "opacity": 30,
+        "y": 20
+      }
+    },
+    "text": {
+      "headlineFont": "SF Pro Display",
+      "headlineColor": "#ffffff",
+      "headlineSize": 140,
+      "headlineWeight": "600",
+      "position": "top",
+      "offsetY": 8,
+      "lineHeight": 110
+    }
+  },
+  "screenshots": {
+    "export-data-*.png": {
+      "headline": {
+        "en": "Share Progress with Doctor",
+        "de": "Berichte mit Arzt teilen",
+        "es": "Comparte con tu médico",
+        "fr": "Partagez avec votre médecin",
+        "it": "Condividi con il medico",
+        "ja": "医師とレポートを共有",
+        "ko": "의사와 보고서 공유",
+        "pl": "Udostępnij raport lekarzowi",
+        "pt": "Compartilhe com seu médico"
+      }
+    },
+    "health-*.png": {
+      "headline": {
+        "en": "Connect your Health Apps",
+        "de": "Deine Health-Apps verbinden",
+        "es": "Conecta tus apps de salud",
+        "fr": "Connectez vos apps de santé",
+        "it": "Collega le tue app salute",
+        "ja": "ヘルスケアアプリと連携",
+        "ko": "건강 앱 연동하기",
+        "pl": "Połącz swoje aplikacje zdrowotne",
+        "pt": "Conecte seus apps de saúde"
+      }
+    },
+    "shots-*.png": {
+      "headline": {
+        "en": "Track Every Shot Easily",
+        "de": "Jede Spritze einfach erfassen",
+        "es": "Registra cada inyección fácil",
+        "fr": "Suivez chaque injection facilement",
+        "it": "Traccia ogni iniezione facilmente",
+        "ja": "すべての注射を簡単に記録",
+        "ko": "모든 주사를 쉽게 기록",
+        "pl": "Łatwo zapisz każdy zastrzyk",
+        "pt": "Registre toda injeção facilmente"
+      }
+    },
+    "progress-tracking-*.png": {
+      "headline": {
+        "en": "Visualize Your Progress",
+        "de": "Visualisiere deinen Fortschritt",
+        "es": "Visualiza tu progreso",
+        "fr": "Visualisez vos progrès",
+        "it": "Visualizza i tuoi progressi",
+        "ja": "進捗を可視化",
+        "ko": "진행 상황 시각화",
+        "pl": "Wizualizuj swoje postępy",
+        "pt": "Visualize seu progresso"
+      }
+    },
+    "insights-*.png": {
+      "headline": {
+        "en": "Unlock Health Insights",
+        "de": "Erkenntnisse gewinnen",
+        "es": "Descubre patrones",
+        "fr": "Analysez vos tendances",
+        "it": "Scopri i tuoi trend",
+        "ja": "健康に関する洞察",
+        "ko": "건강 인사이트 확보",
+        "pl": "Odkryj trendy zdrowotne",
+        "pt": "Descubra padrões de saúde"
+      }
+    },
+    "notifications-*.png": {
+      "headline": {
+        "en": "Never miss a dose",
+        "de": "Verpasse nie eine Dosis",
+        "es": "Nunca pierdas una dosis",
+        "fr": "Ne manquez jamais une dose",
+        "it": "Non perdere mai una dose",
+        "ja": "投与を逃さない",
+        "ko": "복약 놓치지 않기",
+        "pl": "Nigdy nie przegap dawki",
+        "pt": "Nunca perca uma dose"
+      }
+    },
+    "today-*.png": {
+      "headline": {
+        "en": "Stay in control",
+        "de": "Behalte die Kontrolle",
+        "es": "Mantén el control",
+        "fr": "Gardez le contrôle",
+        "it": "Mantieni il controllo",
+        "ja": "しっかりと管理",
+        "ko": "확실한 관리",
+        "pl": "Zachowaj kontrolę",
+        "pt": "Mantenha o controle"
+      }
+    },
+    "my-account-*.png": {
+      "headline": {
+        "en": "Manage Your Profile",
+        "de": "Dein Profil verwalten",
+        "es": "Gestiona tu perfil",
+        "fr": "Gérez votre profil",
+        "it": "Gestisci il tuo profilo",
+        "ja": "プロフィールを管理",
+        "ko": "프로필 관리",
+        "pl": "Zarządzaj swoim profilem",
+        "pt": "Gerencie seu perfil"
+      }
+    },
+    "calendar-*.png": {
+      "headline": {
+        "en": "Keep a good overview",
+        "de": "Behalte den Überblick",
+        "es": "Mantén una buena visión",
+        "fr": "Gardez une vue d'ensemble",
+        "it": "Mantieni una buona panoramica",
+        "ja": "全体を把握",
+        "ko": "전체 흐름 파악",
+        "pl": "Zachowaj przegląd sytuacji",
+        "pt": "Mantenha uma boa visão geral"
+      }
+    },
+    "measurement-units-*.png": {
+      "headline": {
+        "en": "Choose Your Measurement Units",
+        "de": "Wähle deine Maßeinheiten",
+        "es": "Elige tus unidades de medida",
+        "fr": "Choisissez vos unités de mesure",
+        "it": "Scegli le tue unità di misura",
+        "ja": "測定単位を選択",
+        "ko": "측정 단위 선택",
+        "pl": "Wybierz jednostki miary",
+        "pt": "Escolha suas unidades de medida"
+      }
+    },
+    "settings-*.png": {
+      "headline": {
+        "en": "Customize Your App",
+        "de": "App anpassen",
+        "es": "Personaliza tu app",
+        "fr": "Personnalisez votre app",
+        "it": "Personalizza la tua app",
+        "ja": "アプリをカスタマイズ",
+        "ko": "앱 맞춤 설정",
+        "pl": "Dostosuj aplikację",
+        "pt": "Personalize seu app"
+      }
+    },
+    "medication-schedule-*.png": {
+      "headline": {
+        "en": "Set up your own schedule",
+        "de": "Erstelle deinen eigenen Plan",
+        "es": "Configura tu propio horario",
+        "fr": "Définissez votre propre programme",
+        "it": "Imposta il tuo programma",
+        "ja": "独自のスケジュールを設定",
+        "ko": "나만의 일정 설정",
+        "pl": "Ustaw własny harmonogram",
+        "pt": "Configure seu próprio horário"
+      }
+    },
+    "delete-account-*.png": {
+      "headline": {
+        "en": "Delete all info, whenever you want",
+        "de": "Alle Infos löschen, wann immer du willst",
+        "es": "Borra toda la información cuando quieras",
+        "fr": "Supprimez tout à tout moment",
+        "it": "Cancella tutto quando vuoi",
+        "ja": "いつでも全情報を削除可能",
+        "ko": "원할 때 언제든 정보 삭제",
+        "pl": "Usuń wszystko, kiedy chcesz",
+        "pt": "Delete tudo quando quiser"
+      }
+    },
+    "day-details-*.png": {
+      "headline": {
+        "en": "Clear daily overview",
+        "de": "Klarer Tagesüberblick",
+        "es": "Resumen diario claro",
+        "fr": "Aperçu quotidien clair",
+        "it": "Panoramica giornaliera chiara",
+        "ja": "明確な毎日の概要",
+        "ko": "명확한 일일 개요",
+        "pl": "Przejrzysty przegląd dnia",
+        "pt": "Visão diária clara"
+      }
+    }
+  }
+}
