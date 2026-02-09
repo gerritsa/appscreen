@@ -148,6 +148,25 @@ function applyScreenshotConfig(screenshotObj, filename) {
         }
     }
 
+    // 1b. Apply Global Matches (e.g. "health-*.png" matching "Health-android-en.png")
+    // This is needed because sometimes specific file configs aren't found, but we want the "health-*" text
+    if (state.screenshotConfig.screenshots) {
+         const lowerFilename = filename.toLowerCase();
+         // Find keys that use wildcards
+         const wildcardKeys = Object.keys(state.screenshotConfig.screenshots).filter(k => k.includes('*'));
+         
+         for (const key of wildcardKeys) {
+             const parts = key.toLowerCase().split('*');
+             const startMatch = parts[0] === '' || lowerFilename.startsWith(parts[0]);
+             const endMatch = parts[1] === '' || lowerFilename.endsWith(parts[1]);
+             
+             if (startMatch && endMatch) {
+               // console.log(`Device-agnostic match for ${filename} using ${key}`);
+                deepMerge(mergedConfig, state.screenshotConfig.screenshots[key]);
+             }
+         }
+    }
+
     // 2. Apply Specific matched config
     let fileConfig = state.screenshotConfig.screenshots ? state.screenshotConfig.screenshots[filename] : null;
     
@@ -173,11 +192,14 @@ function applyScreenshotConfig(screenshotObj, filename) {
             }
             return false;
         });
-        if (key) fileConfig = state.screenshotConfig.screenshots[key];
+    if (key) fileConfig = state.screenshotConfig.screenshots[key];
     }
 
     if (fileConfig) {
+        console.log(`applyScreenshotConfig: Matched ${filename} with config`, fileConfig);
         deepMerge(mergedConfig, fileConfig);
+    } else {
+        console.log(`applyScreenshotConfig: No match found for ${filename}`);
     }
 
     if (Object.keys(mergedConfig).length > 0) {
@@ -1110,6 +1132,30 @@ async function init() {
 // Set up event listeners immediately (don't wait for async init)
 function initSync() {
     setupEventListeners();
+    
+    // Add refresh config listener
+    const refreshBtn = document.getElementById('refresh-config-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            const btn = document.getElementById('refresh-config-btn');
+            btn.classList.add('spinning'); // You might need css for this, or just visual feedback
+            
+            await loadConfig();
+            
+            // Re-apply to all
+             state.screenshots.forEach(s => {
+                applyScreenshotConfig(s, s.originalName || s.name);
+            });
+            
+            syncUIWithState();
+            updateCanvas();
+            
+            // visual feedback removal
+             setTimeout(() => btn.classList.remove('spinning'), 500);
+             alert('Config reloaded and applied!');
+        });
+    }
+
     initFontPicker();
     updateGradientStopsUI();
     updateCanvas();
@@ -1140,6 +1186,7 @@ function saveState() {
         return {
             src: s.image?.src || '', // Legacy compatibility
             name: s.name,
+            originalName: s.originalName || s.name,
             deviceType: s.deviceType,
             localizedImages: localizedImages,
             background: s.background,
@@ -1285,6 +1332,7 @@ function loadState() {
                                                 state.screenshots[index] = {
                                                     image: localizedImages[firstLang]?.image, // Legacy compat
                                                     name: s.name,
+                                                    originalName: s.originalName || s.name,
                                                     deviceType: s.deviceType,
                                                     localizedImages: localizedImages,
                                                     background: s.background || JSON.parse(JSON.stringify(migratedBackground)),
@@ -1328,6 +1376,7 @@ function loadState() {
                                     state.screenshots[index] = {
                                         image: img,
                                         name: s.name,
+                                        originalName: s.originalName || s.name,
                                         deviceType: s.deviceType,
                                         localizedImages: localizedImages,
                                         background: s.background || JSON.parse(JSON.stringify(migratedBackground)),
@@ -1345,6 +1394,12 @@ function loadState() {
                         function checkAllLoaded() {
                             if (loadedCount === totalToLoad) {
                                 updateScreenshotList();
+
+                                // Re-apply config to ensure all settings are up to date
+                                state.screenshots.forEach(s => {
+                                    applyScreenshotConfig(s, s.originalName || s.name);
+                                });
+
                                 syncUIWithState();
                                 updateGradientStopsUI();
                                 updateCanvas();
@@ -4220,6 +4275,7 @@ function createNewScreenshot(img, src, name, lang, deviceType) {
     const newScreenshot = {
         image: img, // Keep for legacy compatibility
         name: name,
+        originalName: name,
         deviceType: deviceType,
         localizedImages: localizedImages,
         background: JSON.parse(JSON.stringify(state.defaults.background)),
@@ -6119,7 +6175,8 @@ async function loadConfig() {
             }
         }
         
-        // Store screenshot specific config in state
+        // Store config in state
+        state.config = config || {};
         state.screenshotConfig = config || {};
         
     } catch (e) {
@@ -6300,6 +6357,31 @@ const appStoreTargets = {
     android: ['android-phone', 'android-tablet-7', 'android-tablet-10']
 };
 
+const deviceCodeMap = {
+    'iphone-6.9': 'IPHONE_69',
+    'iphone-6.5': 'IPHONE_65',
+    'iphone-5.5': 'IPHONE_55',
+    'ipad-12.9': 'IPAD_PRO_3GEN_129',
+    'android-phone': 'ANDROID_PHONE',
+    'android-tablet-7': 'ANDROID_TABLET_7', 
+    'android-tablet-10': 'ANDROID_TABLET_10'
+};
+
+function getExportOrder(filename) {
+    if (!filename) return 99;
+    if (!state.config || !state.config.exportOrder) return 99;
+    
+    const order = state.config.exportOrder;
+    for (let i = 0; i < order.length; i++) {
+        // pattern like "today-*"
+        const pattern = order[i].replace('*', '');
+        if (filename.startsWith(pattern)) {
+            return i;
+        }
+    }
+    return 99; // End of list if not found
+}
+
 function showExportPackageModal() {
     const modal = document.getElementById('export-package-modal');
     if (modal) modal.classList.add('visible');
@@ -6421,11 +6503,38 @@ async function exportAppStorePackage(target) {
                 indicesToExport.push(idx);
              });
              
+             // Sort indices based on export order
+             indicesToExport.sort((a, b) => {
+                 const sA = state.screenshots[a];
+                 const sB = state.screenshots[b];
+                 const nameA = sA.originalName || sA.name;
+                 const nameB = sB.originalName || sB.name;
+                 const orderA = getExportOrder(nameA);
+                 const orderB = getExportOrder(nameB);
+                 return orderA - orderB;
+             });
+             
              // Export matched screenshots
              for (let j = 0; j < indicesToExport.length; j++) {
                  if (isExportCancelled) break;
 
                  const index = indicesToExport[j];
+                 const screenshot = state.screenshots[index];
+
+                 // FORCE RE-APPLY CONFIG to ensure text/background is correct
+                 // This fixes race conditions where config wasn't ready at init
+                 if (state.screenshotConfig) {
+                     applyScreenshotConfig(screenshot, screenshot.originalName || screenshot.name);
+                 }
+                 
+                 // Debug text for Android
+                 if (device.toLowerCase().includes('android')) {
+                     console.log(`Exporting Android ${screenshot.name}: CurrentLang=${lang}`, {
+                         headlines: screenshot.text.headlines,
+                         currentHeadline: screenshot.text.headlines[lang]
+                     });
+                 }
+
                  state.selectedIndex = index;
                  updateCanvas();
                  
@@ -6435,9 +6544,24 @@ async function exportAppStorePackage(target) {
                  const dataUrl = canvas.toDataURL('image/png');
                  const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
                  
+                 // Construct filename
+                 const nameForOrder = screenshot.originalName || screenshot.name;
+                 const orderIndex = getExportOrder(nameForOrder);
+                 const deviceCode = deviceCodeMap[device] || device.toUpperCase().replace('-', '_');
+                 
+                 console.log(`Exporting ${nameForOrder}: Order=${orderIndex}, Device=${deviceCode}`);
+
+                 let filename;
+                 if (orderIndex !== 99) {
+                     filename = `${orderIndex}_APP_${deviceCode}_${orderIndex}.png`;
+                 } else {
+                     // Fallback to old naming if not in exportOrder
+                     filename = `screenshot-${j+1}.png`; 
+                 }
+                 
                  // Construct full path
                  const dirPath = `${baseOutputDir}/${platformFolder}/${deviceFolder}/${lang}`;
-                 const filePath = `${dirPath}/screenshot-${j+1}.png`;
+                 const filePath = `${dirPath}/${filename}`;
 
                  // Ensure directory exists
                  await electronAPI.ensureDir(dirPath);

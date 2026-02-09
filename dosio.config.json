@@ -239,5 +239,20 @@
         "pt": "Visão diária clara"
       }
     }
-  }
+  },
+  "exportOrder": [
+    "today-*",
+    "calendar-*",
+    "shots-*",
+    "progress-tracking-*",
+    "insights-*",
+    "medication-schedule-*",
+    "settings-*",
+    "health-*",
+    "day-details-*",
+    "export-data-*",
+    "notifications-*",
+    "measurement-units-*",
+    "delete-account-*"
+  ]
 }
